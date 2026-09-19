@@ -50,6 +50,8 @@ model Usuario {
   listaCompra   ListaCompraItem[]
   tareasCreadas TareaDomestica[]
   tareasAsignadas AsignacionTarea[]
+  asignacionesHechas AsignacionTarea[] @relation("AsignacionesHechas")
+  notificaciones Notificacion[]
 }
 
 // Token de confirmacion de email (48 h)
@@ -157,19 +159,37 @@ model TareaDomestica {
 // Asignacion de una tarea a una persona (Fiti, Mar o Jose) en un fin de semana.
 // Aunque la semana se guarda como lunes, la asignacion siempre cae en sabado o domingo.
 model AsignacionTarea {
-  id        Int            @id @default(autoincrement())
-  usuarioId Int            // persona asignada (Fiti, Mar o Jose)
-  usuario   Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  tareaId   Int
-  tarea     TareaDomestica @relation(fields: [tareaId], references: [id], onDelete: Cascade)
-  semana    DateTime       @db.Date // lunes de la semana del fin de semana
-  dia       DiaSemanaTarea @default(SABADO)
-  checked   Boolean        @default(false) // tarea realizada
-  orden     Int            @default(0)
-  generado  Boolean        @default(true) // false si se creo a mano despues del reparto
-  createdAt DateTime       @default(now())
+  id            Int            @id @default(autoincrement())
+  usuarioId     Int            // persona asignada (Fiti, Mar o Jose)
+  usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tareaId       Int
+  tarea         TareaDomestica @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  semana        DateTime       @db.Date // lunes de la semana del fin de semana
+  dia           DiaSemanaTarea @default(SABADO)
+  checked       Boolean        @default(false) // tarea realizada
+  orden         Int            @default(0)
+  generado      Boolean        @default(true) // false si se creo a mano despues del reparto
+  asignadaPorId Int?           // usuario que genero el reparto o asigno la tarea a mano
+  asignadaPor   Usuario?       @relation("AsignacionesHechas", fields: [asignadaPorId], references: [id], onDelete: SetNull)
+  createdAt     DateTime       @default(now())
 
   @@unique([usuarioId, tareaId, semana])
   @@index([semana])
   @@index([usuarioId, semana])
+  @@index([asignadaPorId])
+}
+
+// Notificacion en la app: se crean al repartir/asignar tareas y al finalizarlas.
+model Notificacion {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tipo      String   @default("TAREA") // TAREA, SISTEMA...
+  titulo    String
+  mensaje   String
+  leida     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId, leida])
+  @@index([usuarioId, createdAt])
 }

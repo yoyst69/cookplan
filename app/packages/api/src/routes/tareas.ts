@@ -36,7 +36,11 @@ async function reparto(lunes: Date) {
   const asignaciones = await prisma.asignacionTarea.findMany({
     where: { semana: lunes },
     orderBy: [{ dia: 'asc' }, { usuarioId: 'asc' }, { orden: 'asc' }, { createdAt: 'asc' }],
-    include: { tarea: { select: { id: true, nombre: true, peso: true } }, usuario: { select: { id: true, nombre: true } } },
+    include: {
+      tarea: { select: { id: true, nombre: true, peso: true } },
+      usuario: { select: { id: true, nombre: true } },
+      asignadaPor: { select: { id: true, nombre: true } },
+    },
   });
   const catalogo = await prisma.tareaDomestica.findMany({ orderBy: [{ activa: 'desc' }, { nombre: 'asc' }] });
   return {
@@ -55,9 +59,45 @@ async function reparto(lunes: Date) {
       checked: a.checked,
       orden: a.orden,
       generado: a.generado,
+      asignadaPor: a.asignadaPor?.nombre ?? null,
     })),
     catalogo,
   };
+}
+
+// Crea una notificacion por cada persona con tareas pendientes este fin de semana.
+async function avisarPendientes(lunes: Date, asignador: { id: number; nombre: string }) {
+  const pendientes = await prisma.asignacionTarea.findMany({
+    where: { semana: lunes },
+    include: { tarea: { select: { nombre: true } }, usuario: { select: { id: true, nombre: true } } },
+  });
+  const porUsuario = new Map<number, (typeof pendientes)[number][]>();
+  for (const a of pendientes) {
+    if (!porUsuario.has(a.usuarioId)) porUsuario.set(a.usuarioId, []);
+    porUsuario.get(a.usuarioId)!.push(a);
+  }
+  const filas: Array<{ usuarioId: number; tipo: string; titulo: string; mensaje: string }> = [];
+  for (const [usuarioId, lista] of porUsuario) {
+    const pend = lista.filter((a) => !a.checked);
+    if (pend.length === 0) continue;
+    const numero = pend.length;
+    const detalle = pend.map((a) => a.tarea.nombre).join(', ');
+    const nombre = pend[0].usuario.nombre;
+    filas.push({
+      usuarioId,
+      tipo: 'TAREA',
+      titulo: 'Reparto del fin de semana',
+      mensaje:
+        asignador.id === usuarioId
+          ? `Generaste el reparto y te quedaron ${numero} tarea${numero === 1 ? '' : 's'} pendiente${numero === 1 ? '' : 's'}: ${detalle}.`
+          : `${asignador.nombre} te ha asignado ${numero} tarea${numero === 1 ? '' : 's'} para este fin de semana: ${detalle}.`,
+    });
+  }
+  if (filas.length > 0) await prisma.notificacion.createMany({ data: filas });
+}
+
+function diaTexto(dia: Dia): string {
+  return dia === 'SABADO' ? 'el sábado' : 'el domingo';
 }
 
 // GET /tareas?semana=YYYY-MM-DD — reparto del fin de semana + catalogo
@@ -96,7 +136,11 @@ router.post('/generar', async (req, res) => {
     const rot = Math.max(0, rotacionSemana(lunes) % personas.length);
     const esfuerzo = personas.map((p) => ({ id: p.id, total: 0, tareas: [] as number[] }));
     for (const t of disponibles.sort((a, b) => b.peso - a.peso || a.id - b.id)) {
-      const candidatos = esfuerzo.map((e, i) => ({ e, i }));
+      // solo candidatas personas que no tengan ya esa tarea asignada a mano
+      const candidatos = esfuerzo
+        .map((e, i) => ({ e, i }))
+        .filter(({ e }) => !ocupado.has(`${e.id}:${t.id}`));
+      if (candidatos.length === 0) continue; // todos la tienen ya: no se redistribuye
       candidatos.sort((x, y) => (x.e.total - y.e.total) || ((x.i + rot) % personas.length) - ((y.i + rot) % personas.length));
       const mejor = candidatos[0].e;
       mejor.total += t.peso;
@@ -127,10 +171,21 @@ router.post('/generar', async (req, res) => {
     await prisma.$transaction(
       filas.map((f) =>
         prisma.asignacionTarea.create({
-          data: { usuarioId: f.usuarioId, tareaId: f.tareaId, semana: lunes, dia: f.dia, orden: f.orden, generado: true },
+          data: {
+            usuarioId: f.usuarioId,
+            tareaId: f.tareaId,
+            semana: lunes,
+            dia: f.dia,
+            orden: f.orden,
+            generado: true,
+            asignadaPorId: req.usuario!.id,
+          },
         })
       )
     );
+
+    // aviso a cada persona con tareas pendientes de este fin de semana
+    await avisarPendientes(lunes, { id: req.usuario!.id, nombre: req.usuario!.nombre });
 
     res.json(await reparto(lunes));
   } catch (err: any) {
@@ -159,7 +214,7 @@ router.post('/asignacion', async (req, res) => {
     });
     const asignacion = await prisma.asignacionTarea.upsert({
       where: { usuarioId_tareaId_semana: { usuarioId, tareaId, semana: lunes } },
-      update: { dia, generado: false },
+      update: { dia, generado: false, asignadaPorId: req.usuario!.id },
       create: {
         usuarioId,
         tareaId,
@@ -167,8 +222,22 @@ router.post('/asignacion', async (req, res) => {
         dia,
         generado: false,
         orden: (ultimo[0]?.orden ?? 0) + 1,
+        asignadaPorId: req.usuario!.id,
       },
     });
+
+    // aviso a la persona asignada (no a uno mismo)
+    if (req.usuario!.id !== usuarioId) {
+      await prisma.notificacion.create({
+        data: {
+          usuarioId,
+          tipo: 'TAREA',
+          titulo: 'Tarea asignada',
+          mensaje: `${req.usuario!.nombre} te ha asignado la tarea «${tarea.nombre}» para ${diaTexto(dia)} de esta semana.`,
+        },
+      });
+    }
+
     res.status(201).json({ asignacion });
   } catch (err: any) {
     console.error(err);
@@ -185,6 +254,26 @@ router.patch('/asignacion/:id', async (req, res) => {
     if (typeof body.checked === 'boolean') data.checked = body.checked;
     if (body.dia && DIAS.includes(String(body.dia).toUpperCase() as Dia)) data.dia = String(body.dia).toUpperCase();
     const upd = await prisma.asignacionTarea.update({ where: { id }, data });
+
+    // al finalizar una tarea, se avisa a quien la asigno
+    if (body.checked === true) {
+      const conDetalle = await prisma.asignacionTarea.findUnique({
+        where: { id },
+        include: { tarea: { select: { nombre: true } }, asignadaPor: { select: { id: true } } },
+      });
+      const asignador = conDetalle?.asignadaPor;
+      if (asignador && asignador.id !== req.usuario!.id) {
+        await prisma.notificacion.create({
+          data: {
+            usuarioId: asignador.id,
+            tipo: 'TAREA',
+            titulo: 'Tarea finalizada',
+            mensaje: `${req.usuario!.nombre} ha finalizado la tarea «${conDetalle!.tarea.nombre}» (${diaTexto(conDetalle!.dia)}).`,
+          },
+        });
+      }
+    }
+
     res.json({ asignacion: upd });
   } catch (err: any) {
     console.error(err);

@@ -65,6 +65,19 @@ miembros de la casa (Fiti, Mar y Jose).
   guardan en la config por si cambian los nombres).
 
 ------------------------------------------------------------------------
+3.1. Notificaciones
+- Al generar el reparto o asignar una tarea a mano, cada persona con
+  tareas pendientes recibe una notificacion en la app con el detalle
+  ("Fiti te ha asignado N tareas..." / "Mar te ha asignado la tarea...").
+- Al marcar como finalizada una tarea, se notifica a quien la asigno
+  ("Jose ha finalizado la tarea Limpiar el bano").
+- Modelo Notificacion (titulo/mensaje/tipo/leida) + campo
+  asignadaPorId en AsignacionTarea. Rutas: GET /api/notificaciones,
+  GET /no-leidas, PATCH /:id, POST /leer-todas. Web: campana con
+  badge de no leidas (polling 30 s) y panel con historial.
+- Correccion: el generador ya no asigna una tarea a una persona que la
+  tiene asignada a mano (constraint unico usuarioId,tareaId,semana).
+
 4. Entorno y arquitectura
 ------------------------------------------------------------------------
 - Windows (win32), PowerShell 5.1. Stack replicado de quiniela_app_new /

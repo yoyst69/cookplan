@@ -206,3 +206,21 @@ export const usuariosAPI = {
     api.patch<{ usuario: Usuario }>(`/usuarios/${id}`, data),
   desactivar: (id: number) => api.delete<{ usuario: Usuario }>(`/usuarios/${id}`),
 };
+
+/* ---------- Notificaciones ---------- */
+export interface Notificacion {
+  id: number;
+  usuarioId: number;
+  tipo: string;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  createdAt: string;
+}
+
+export const notificacionesAPI = {
+  list: (limit?: number) => api.get<{ notificaciones: Notificacion[]; noLeidas: number }>('/notificaciones', { params: { limit } }),
+  noLeidas: () => api.get<{ noLeidas: number }>('/notificaciones/no-leidas'),
+  leer: (id: number) => api.patch<{ ok: boolean }>(`/notificaciones/${id}`, { leida: true }),
+  leerTodas: () => api.post<{ ok: boolean }>('/notificaciones/leer-todas'),
+};

@@ -13,6 +13,7 @@ import recetas from './routes/recetas';
 import plan from './routes/plan';
 import listaCompra from './routes/lista';
 import tareas from './routes/tareas';
+import notificaciones from './routes/notificaciones';
 import { uploadsDir } from './services/fotos';
 
 const app = express();
@@ -37,6 +38,7 @@ app.use('/api/recetas', recetas);
 app.use('/api/plan', plan);
 app.use('/api/lista-compra', listaCompra);
 app.use('/api/tareas', tareas);
+app.use('/api/notificaciones', notificaciones);
 
 // Error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

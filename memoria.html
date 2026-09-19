@@ -58,6 +58,13 @@ th{background:#fdf3ea}
 <li>Cualquier usuario autenticado puede generar el reparto y añadir tareas al catálogo; el admin Fiti gestiona usuarios.</li>
 <li>Config <code>tareas_personas</code> (ids de Fiti,Mar,Jose) en la tabla Configuracion; las personas se calculan por prefijo de nombre para el reparto (los posibles prefijos quedan en la config por si cambian los nombres).</li>
 </ul>
+<h3>3.1. Notificaciones</h3>
+<ul>
+<li>Al <strong>generar el reparto</strong> o <strong>asignar una tarea a mano</strong>, cada persona con tareas pendientes recibe una notificación en la app con el detalle («Fiti te ha asignado N tareas...» / «Mar te ha asignado la tarea...»).</li>
+<li>Al <strong>marcar como finalizada</strong> una tarea, se notifica a quien la asignó («Jose ha finalizado la tarea «Limpiar el baño»»).</li>
+<li>Modelo <code>Notificacion</code> (titulo/mensaje/tipo/leida) + campo <code>asignadaPorId</code> en <code>AsignacionTarea</code>. Rutas: <code>GET /api/notificaciones</code>, <code>GET /no-leidas</code>, <code>PATCH /:id</code>, <code>POST /leer-todas</code>. En el web: campana con badge de no leídas (polling 30 s) y panel con historial.</li>
+<li>Corrección: el generador ya no asigna una tarea a una persona que la tiene asignada a mano (fallo de constraint <code>@@unique(usuarioId,tareaId,semana)</code>).</li>
+</ul>
 
 <h2>4. Entorno y arquitectura</h2>
 <ul>
