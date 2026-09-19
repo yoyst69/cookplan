@@ -1,0 +1,175 @@
+// CookPlan - Esquema de base de datos
+// PostgreSQL 15 (contenedor cookplan-db, puerto 5435)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Momento a usar la receta en el plan semanal: comida o cena.
+enum MomentoDia {
+  COMIDA
+  CENA
+  AMBAS
+  POSTRE
+}
+
+// Origen de un item de la lista de la compra
+enum OrigenItem {
+  MENU
+  MANUAL
+}
+
+// Dia del fin de semana para las tareas domesticas
+enum DiaSemanaTarea {
+  SABADO
+  DOMINGO
+}
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  email         String   @unique
+  password      String // hash bcrypt
+  telefono      String?
+  logo          String? // ruta/URL del logo (webp redimensionado) o nombre del fichero subido
+  confirmado    Boolean  @default(false) // email validado
+  activo        Boolean  @default(true)
+  esAdmin       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tokensConfirmacion TokenConfirmacion[]
+  tokensRecuperacion TokenRecuperacion[]
+  recetas       Receta[]
+  planes        PlanMenu[]
+  listaCompra   ListaCompraItem[]
+  tareasCreadas TareaDomestica[]
+  tareasAsignadas AsignacionTarea[]
+}
+
+// Token de confirmacion de email (48 h)
+model TokenConfirmacion {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @unique
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expira    DateTime
+  createdAt DateTime @default(now())
+}
+
+// Token de recuperacion de contrasena (1 h)
+model TokenRecuperacion {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @unique
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expira    DateTime
+  createdAt DateTime @default(now())
+}
+
+// Receta de cocina. Compartida por los usuarios de la casa; el creador puede editarla.
+model Receta {
+  id            Int         @id @default(autoincrement())
+  titulo        String
+  momento       MomentoDia  @default(AMBAS) // cuando se sugiere en el plan: comida/cena/ambas/postre
+  descripcion   String?     // texto corto de presentacion
+  foto          String?     // ruta webp de la foto (relativa a /uploads)
+  ingredientes  String[]    @default([]) // lista de productos
+  pasos         String[]    @default([]) // pasos de elaboracion
+  tiempo        Int?        // minutos estimados
+  personas      Int?        // raciones
+  creadorId     Int?
+  creador       Usuario?    @relation(fields: [creadorId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  planesComida  PlanMenu[]  @relation("planComida")
+  planesCena    PlanMenu[]  @relation("planCena")
+
+  @@index([momento])
+  @@index([titulo])
+}
+
+// Plan semanal por usuario y dia. Un dia tiene receta de comida y/o cena.
+model PlanMenu {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  fecha     DateTime @db.Date // dia del plan
+  comidaId  Int?     // receta asignada a la comida
+  comida    Receta?  @relation("planComida", fields: [comidaId], references: [id], onDelete: SetNull)
+  cenaId    Int?
+  cena      Receta?  @relation("planCena", fields: [cenaId], references: [id], onDelete: SetNull)
+  generado  Boolean  @default(false) // true si lo relleno la sugerencia automatica
+  updatedAt DateTime @updatedAt
+
+  @@unique([usuarioId, fecha])
+  @@index([usuarioId, fecha])
+  @@index([comidaId])
+  @@index([cenaId])
+}
+
+// Item de la lista de la compra, agrupado por semana (lunes).
+model ListaCompraItem {
+  id         Int         @id @default(autoincrement())
+  usuarioId  Int
+  usuario    Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  semana     DateTime    @db.Date // lunes de la semana a la que pertenece
+  producto   String
+  cantidad   String?     // texto libre de cantidad / veces que se repite
+  origen     OrigenItem  @default(MANUAL)
+  checked    Boolean     @default(false)
+  orden      Int         @default(0)
+  createdAt  DateTime    @default(now())
+
+  @@index([usuarioId, semana])
+  @@unique([usuarioId, semana, producto, origen])
+}
+
+// Configuracion general por clave
+model Configuracion {
+  id          Int      @id @default(autoincrement())
+  clave       String   @unique
+  valor       String
+  descripcion String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Catalogo de tareas domesticas (lo alimenta cualquier usuario)
+model TareaDomestica {
+  id        Int      @id @default(autoincrement())
+  nombre    String   @unique
+  peso      Int      @default(1) // esfuerzo estimado (1..3): ayuda al reparto equilibrado
+  activa    Boolean  @default(true) // si se incluye al generar el reparto
+  creadorId Int?
+  creador   Usuario? @relation(fields: [creadorId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  asignaciones AsignacionTarea[]
+}
+
+// Asignacion de una tarea a una persona (Fiti, Mar o Jose) en un fin de semana.
+// Aunque la semana se guarda como lunes, la asignacion siempre cae en sabado o domingo.
+model AsignacionTarea {
+  id        Int            @id @default(autoincrement())
+  usuarioId Int            // persona asignada (Fiti, Mar o Jose)
+  usuario   Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tareaId   Int
+  tarea     TareaDomestica @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  semana    DateTime       @db.Date // lunes de la semana del fin de semana
+  dia       DiaSemanaTarea @default(SABADO)
+  checked   Boolean        @default(false) // tarea realizada
+  orden     Int            @default(0)
+  generado  Boolean        @default(true) // false si se creo a mano despues del reparto
+  createdAt DateTime       @default(now())
+
+  @@unique([usuarioId, tareaId, semana])
+  @@index([semana])
+  @@index([usuarioId, semana])
+}

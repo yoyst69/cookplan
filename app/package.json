@@ -1,0 +1,17 @@
+{
+  "name": "cookplan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CookPlan - gestion de recetas, plan semanal y lista de la compra",
+  "scripts": {
+    "build": "npm --prefix packages/api install && npm --prefix packages/api run build",
+    "start": "npm --prefix packages/api start",
+    "dev:api": "npm --prefix packages/api run dev",
+    "dev:web": "npm --prefix packages/web run dev",
+    "build:web": "npm --prefix packages/web run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

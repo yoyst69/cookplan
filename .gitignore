@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+android/app/build/
+android/build/
+*.log
+.env
+.env.local
+.prisma/
+*.tsbuildinfo
+.DS_Store
+~$*.docx
+*.tmp

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CookPlan · Memoria del proyecto</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1a1a1a;line-height:1.5}
+h1{border-bottom:3px solid #f97316;padding-bottom:8px;color:#c2410c}
+h2{border-bottom:1px solid #ccc;padding-bottom:4px;margin-top:32px;color:#c2410c}
+h3{margin-bottom:4px}
+code{background:#f0f0f0;padding:1px 6px;border-radius:4px;font-size:0.92em}
+pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow-x:auto;font-size:0.9em}
+table{border-collapse:collapse;width:100%;font-size:0.9em}
+th,td{border:1px solid #d0d0d0;padding:6px 10px;text-align:left;vertical-align:top}
+th{background:#fdf3ea}
+.tag{display:inline-block;background:#f97316;color:#fff;border-radius:12px;padding:2px 10px;font-size:0.75em;margin-right:6px}
+.ok{color:#1a8a3a;font-weight:600}
+.pend{color:#c00;font-weight:600}
+.note{background:#fff8e1;border-left:4px solid #f0a000;padding:8px 12px;margin:12px 0}
+.warn{background:#fdecea;border-left:4px solid #d32f2f;padding:8px 12px;margin:12px 0}
+</style>
+</head>
+<body>
+
+<h1>CookPlan · Memoria del proyecto</h1>
+<p><span class="tag">Inicio</span> Actualizada: 2026-09-19 · Documento vivo, se amplía en cada sesión. <span class="tag">Estado</span> Backend completo y probado (recetas, plan semanal, lista de la compra y tareas domésticas del fin de semana) + frontend web completo con build en verde + plataforma Android añadida con Capacitor.</p>
+
+<h2>1. Objetivo del proyecto</h2>
+<p>Aplicación <strong>CookPlan</strong> para el hogar: planificación semanal de comidas evitando repeticiones, generación de la lista de la compra a partir del menú y <strong>reparto de tareas domésticas del fin de semana</strong> entre los miembros de la casa (Fiti, Mar y Jose).</p>
+
+<h2>2. Requisitos funcionales</h2>
+<h3>2.1. Usuarios</h3>
+<ul>
+<li>Registro con confirmación por correo (o enlace por consola si no hay SMTP configurado).</li>
+<li>Roles: administrador (Fiti) y usuarios normales (Mar, Jose). Un admin puede crear usuarios, cambiar permisos/activo y restablecer contraseñas.</li>
+<li>Usuarios iniciales (seed): <code>Fiti</code> admin = <code>admin@cookplan.local</code> / <code>Fiti6969</code> · <code>Mar</code> = <code>mmarruizg70@gmail.com</code> / <code>5668</code> · <code>Jose</code> = <code>jose@cookplan.local</code> / <code>5668</code>.</li>
+</ul>
+<h3>2.2. Recetas</h3>
+<ul>
+<li>Catálogo de recetas con foto (subida multipart → WebP mediante sharp), tiempo, personas, momento (Desayuno/Comida/Cena) y pasos/ingredientes.</li>
+<li>Importación inicial de 40 recetas de Mar desde <code>scripts/recetasDataA.ts</code> + <code>recetasDataB.ts</code> (fuente: <code>Recetas.Mar.docx</code> convertido a texto). Importador idempotente en <code>scripts/import-recetas.ts</code>.</li>
+</ul>
+<h3>2.3. Plan semanal</h3>
+<ul>
+<li>Tabla 7 días × 2 slots (comida y cena). El generador rellena solo los huecos vacíos.</li>
+<li>Regla anti-repetición: una receta no se repite si se usó en los últimos <code>dias_sin_repetir</code> días (config por usuario, 21 por defecto) ni en la misma semana. <code>GET /plan/sugerencias</code> devuelve sugerencias con <code>diasSinUsar</code>.</li>
+</ul>
+<h3>2.4. Lista de la compra</h3>
+<ul>
+<li>Origen <code>MENU</code> (generada desde el plan, agrupando ingredientes) y <code>MANUAL</code> (productos añadidos a mano). Check/tachado, cantidad opcional y equivalencias (ej. 3 dientes = 1 cabeza de ajo).</li>
+</ul>
+
+<h2>3. Tareas domésticas (nueva zona)</h2>
+<ul>
+<li>Reparto automático del fin de semana (sábado + domingo) entre las 3 personas del hogar.</li>
+<li>Catálogo inicial de 15 tareas con peso de esfuerzo (1-3): pasar la aspiradora, limpiar el baño, sacar la basura, cocinar el fin de semana, etc.</li>
+<li>Algoritmo: greedy equilibrado por peso con rotación semanal; cada persona reparte sus tareas entre sábado/domingo balanceando esfuerzo. Reemplaza solo asignaciones <span class="ok">generadas</span> previas; las manuales (<code>generado=false</code>) se respetan.</li>
+<li>Cualquier usuario autenticado puede generar el reparto y añadir tareas al catálogo; el admin Fiti gestiona usuarios.</li>
+<li>Config <code>tareas_personas</code> (ids de Fiti,Mar,Jose) en la tabla Configuracion; las personas se calculan por prefijo de nombre para el reparto (los posibles prefijos quedan en la config por si cambian los nombres).</li>
+</ul>
+
+<h2>4. Entorno y arquitectura</h2>
+<ul>
+<li>Windows (win32), PowerShell 5.1. <strong>Stack replicado de <code>quiniela_app_new</code> / GM-PrintFlow:</strong> monorepo <code>app/</code> con <code>packages/api</code> (Express + TypeScript + Prisma) y <code>packages/web</code> (Vite + React + TypeScript + Tailwind 4).</li>
+<li>Base de datos: PostgreSQL 15 en contenedor Docker, <strong>puerto 5435</strong> (user/db/pass = cookplan). Contenedor <code>cookplan-db</code>.</li>
+<li>Puertos locales: API <code>3004</code>, dev server web <code>5176</code> (con proxy <code>/api</code> y <code>/uploads</code> → 3004).</li>
+<li>Tema: dark por defecto con modo claro; clases utilidades <code>card</code>, <code>btn</code>, <code>input</code>, <code>badge</code>; acento naranja (<code>--color-accent-500:#f97316</code>).</li>
+</ul>
+
+<h2>5. Base de datos (Prisma)</h2>
+<ul>
+<li>Migraciones aplicadas: <code>20260919091315_init</code>, <code>20260919100000_tokens_usuario_unico</code> (usuarioId único en TokenConfirmacion/TokenRecuperacion) y <code>20260919110000_tareas_domesticas</code> (enum <code>DiaSemanaTarea</code>, modelos <code>TareaDomestica</code> y <code>AsignacionTarea</code> con <code>@@unique([usuarioId,tareaId,semana])</code>).</li>
+<li>⚠ <code>prisma migrate dev</code> es interactivo y falla en consola no interactiva → las migraciones se escriben a mano en <code>prisma/migrations/&lt;epoch&gt;_nombre/migration.sql</code> y se aplican con <code>npx prisma migrate deploy</code> + <code>prisma generate</code>.</li>
+</ul>
+
+<h2>6. API REST (packages/api)</h2>
+<pre>/api/health · /api/auth (login/registro/confirmar/recuperar/reset/perfil+logo)
+/api/recetas  CRUD + foto · /api/plan (get/guardar/generar/sugerencias)
+/api/lista-compra (get/crear/patchear/borrar/generar desde menú)
+/api/tareas  reparto + catálogo + asignaciones · /api/usuarios (admin)</pre>
+<ul>
+<li>JWT Bearer; middleware de auth con <code>req.usuario</code>; subida de fotos con multer 2.x + sharp (WebP).</li>
+<li>Email: si existe <code>SMTP_HOST</code> envía correos reales; si no, el enlace se muestra por consola (estilo quiniela).</li>
+</ul>
+
+<h2>7. Frontend web (packages/web)</h2>
+<ul>
+<li>Páginas: Login, Register, Confirmar, Recuperar, Reset, NotFound, <strong>Recetas</strong> (grid + CRUD + ver), <strong>Plan</strong> (tabla semanal + picker con sugerencias), <strong>Lista</strong>, <strong>Tareas domésticas</strong>, Perfil, Usuarios (admin).</li>
+<li>Contextos: Auth (<code>cp_token</code>/<code>cp_usuario</code>, guardas Privado/Admin) y Tema (<code>cp-theme</code>). Axios centralizado con interceptor de token y manejo 401.</li>
+<li>Build de producción en verde (<code>tsc && vite build</code>); proxy del dev server probado de extremo a extremo (login a través de 5176).</li>
+<li>Capacitor 8: plataforma Android añadida (<code>appId com.cookplan.app</code>, <code>webDir dist</code>). Para la app real hay que compilar con <code>VITE_API_URL</code> apuntando a la API desplegada.</li>
+</ul>
+
+<h2>8. Pruebas realizadas</h2>
+<ul>
+<li class="ok">Health OK; login de Mar y Jose; recetas: 40 importadas (0 duplicadas).</li>
+<li class="ok">Plan semanal: <code>POST /plan/generar</code> → 7 días; lista de la compra desde menú → 74 productos.</li>
+<li class="ok">Tareas: reparto de 15 tareas / 3 personas, semana 2026-09-14 → sábado 2026-09-19 (esfuerzos 4/5/5) y domingo 2026-09-20 (4/4/4). Patch de <code>checked</code>, asignaciones manuales y catálogo verificados.</li>
+<li class="ok">Build web + E2E a través del proxy del dev server (health y login via 5176).</li>
+</ul>
+
+<h2>9. Pendientes</h2>
+<ul>
+<li class="pend">Compilar APK Android (requiere Android Studio / SDK; en este equipo solo hay Java 17, no SDK).</li>
+<li class="pend">Git init + push del repositorio <code>cookplan</code> (GitHub/yoyst69).</li>
+<li class="pend">Despliegue: exportar a Supabase (conexión de respaldo) y decidir host de la API (infinityfree no soporta Node/Express).</li>
+</ul>
+
+<h2>10. Ficheros clave</h2>
+<pre>app/packages/api/src/routes/        auth, recetas, plan, lista, tareas, usuarios
+app/packages/api/prisma/            schema.prisma · seed.ts · migrations/
+app/packages/api/scripts/           recetasDataA.ts · recetasDataB.ts · recetasData.ts · import-recetas.ts
+app/packages/api/.env               DATABASE_URL, JWT_SECRET, PORT=3004 (reportable: puerto y conexión)
+app/packages/web/src/pages/         las 12 páginas · lib/api.ts · lib/fechas.ts
+app/packages/web/vite.config.ts     proxy /api y /uploads → http://localhost:3004</pre>
+
+</body>
+</html>

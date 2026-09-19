@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/* Modo claro: los grises oscuros del tema base se re-mapean para garantizar
+   contraste sobre las superficies blancas. El modo oscuro no se toca. */
+@layer utilities {
+  .light .text-slate-100 { color: #0f172a; }
+  .light .text-slate-200 { color: #0f172a; }
+  .light .text-slate-300 { color: #334155; }
+  .light .text-slate-400 { color: #475569; }
+  .light .text-slate-500 { color: #475569; }
+  .light .text-slate-600 { color: #334155; }
+  .light .text-slate-700 { color: #1e293b; }
+  .light .text-neutral-400 { color: #3f3f46; }
+  .light .text-neutral-500 { color: #3f3f46; }
+}
+
+@custom-variant light (&:where(.light, .light *));
+@custom-variant dark (&:where(:not(.light), .dark, .dark *));
+
+@theme {
+  /* Superficies: fondo + paneles (oscuro por defecto) */
+  --color-night: #3f3f46;    /* fondo de app (zinc-800) */
+  --color-night-2: #52525b;  /* gradiente sutil de pagina */
+  --color-panel: #27272a;    /* tarjetas / paneles (zinc-900) */
+  --color-panel-2: #3f3f46;  /* inputs y zonas elevadas (zinc-800) */
+  --color-panel-3: #52525b;  /* hover / filas activas (zinc-700) */
+  --color-edge: #71717a;     /* bordes visibles (zinc-500) */
+
+  /* Acento: naranja (cocina) */
+  --color-accent-300: #fdba74;
+  --color-accent-400: #fb923c;
+  --color-accent-500: #f97316;
+  --color-accent-600: #ea580c;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+
+  --animate-pop: pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-fade-up: fade-up 0.25s ease-out;
+  --animate-slide-in: slide-in 0.3s ease-out;
+
+  @keyframes pop {
+    0% { transform: scale(0.86); }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+}
+
+/* Modo claro: sobreescribe los tokens de superficie */
+.light {
+  --color-night: #f4f4f5;
+  --color-night-2: #e8e8eb;
+  --color-panel: #ffffff;
+  --color-panel-2: #ececef;
+  --color-panel-3: #dcdee1;
+  --color-edge: #c4c4cc;
+
+  --color-accent-300: #c2410c;
+  --color-accent-400: #ea580c;
+  --color-accent-500: #f97316;
+  --color-accent-600: #c2410c;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  .light {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-night);
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, rgba(249, 115, 22, 0.05), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(249, 115, 22, 0.04), transparent 55%);
+    color: #e4e4e7;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.01em;
+  }
+  .light body {
+    color: #18181b;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.01em;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #71717a var(--color-night);
+  }
+  .light * {
+    scrollbar-color: #d4d4d4 var(--color-night);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-night);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #71717a;
+    border-radius: 9999px;
+    border: 2px solid var(--color-night);
+  }
+  .light ::-webkit-scrollbar-thumb {
+    background: #d4d4d4;
+    border-color: var(--color-night);
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-edge bg-panel shadow-sm;
+  }
+  .card-accent {
+    @apply rounded-2xl border border-edge bg-panel shadow-sm border-t-2 border-t-accent-500;
+  }
+  .input {
+    @apply rounded-lg border border-edge bg-panel-2 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-500/30 bg-panel-2;
+  }
+  .input-dark {
+    @apply text-slate-100;
+  }
+  .light .input {
+    @apply text-slate-800;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent-500 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-dark {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-edge bg-panel px-3.5 py-2 text-sm font-semibold text-slate-100 transition hover:bg-panel-3 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .light .btn-outline {
+    @apply text-slate-700;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 transition hover:bg-panel-3 hover:text-slate-200;
+  }
+  .btn-danger-soft {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-transparent bg-red-500/15 px-3.5 py-2 text-sm font-semibold text-red-500 transition hover:bg-red-500/25 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1.5 text-xs;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold;
+  }
+  .skeleton {
+    @apply animate-pulse rounded-lg bg-panel-3;
+  }
+}

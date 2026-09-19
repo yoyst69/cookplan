@@ -1,0 +1,155 @@
+========================================================================
+CookPlan - Memoria del proyecto
+========================================================================
+Actualizada: 2026-09-19   (documento vivo, se amplia en cada sesion)
+Estado: Backend completo y probado (recetas, plan semanal, lista de la
+compra y tareas domesticas del fin de semana) + frontend web completo
+con build en verde + plataforma Android anadida con Capacitor.
+
+------------------------------------------------------------------------
+1. Objetivo del proyecto
+------------------------------------------------------------------------
+Aplicacion CookPlan para el hogar: planificacion semanal de comidas
+evitando repeticiones, generacion de la lista de la compra a partir del
+menu, y reparto de tareas domesticas del fin de semana entre los
+miembros de la casa (Fiti, Mar y Jose).
+
+------------------------------------------------------------------------
+2. Requisitos funcionales
+------------------------------------------------------------------------
+2.1. Usuarios
+- Registro con confirmacion por correo (o enlace por consola si no hay
+  SMTP configurado).
+- Roles: administrador (Fiti) y usuarios normales (Mar, Jose). El admin
+  crea usuarios, cambia permisos/activo y restablece contrasenas.
+- Usuarios iniciales (seed):
+    Fiti  admin  admin@cookplan.local / Fiti6969
+    Mar          mmarruizg70@gmail.com / 5668
+    Jose         jose@cookplan.local / 5668
+
+2.2. Recetas
+- Catalogo con foto (multipart -> WebP con sharp), tiempo, personas,
+  momento (Desayuno/Comida/Cena), pasos e ingredientes.
+- Importacion inicial de 40 recetas de Mar desde scripts/recetasDataA.ts
+  + recetasDataB.ts (fuente: Recetas.Mar.docx). Importador idempotente:
+  scripts/import-recetas.ts.
+
+2.3. Plan semanal
+- Tabla 7 dias x 2 slots (comida y cena). El generador rellena solo los
+  huecos vacios.
+- Anti-repeticion: una receta no se repite si se uso en los ultimos
+  dias_sin_repetir dias (por usuario, 21 por defecto) ni en la misma
+  semana. GET /plan/sugerencias devuelve sugerencias con diasSinUsar.
+
+2.4. Lista de la compra
+- Origen MENU (generada desde el plan agrupando ingredientes) y MANUAL
+  (productos a mano). Check/tachado, cantidad opcional y equivalencias
+  (ej. 3 dientes = 1 cabeza de ajo).
+
+------------------------------------------------------------------------
+3. Tareas domesticas (nueva zona)
+------------------------------------------------------------------------
+- Reparto automatico del fin de semana (sabado + domingo) entre las 3
+  personas del hogar.
+- Catalogo inicial de 15 tareas con peso de esfuerzo (1-3): pasar la
+  aspiradora, limpiar el bano, sacar la basura, cocinar el fin de
+  semana, etc.
+- Algoritmo: greedy equilibrado por peso con rotacion semanal; cada
+  persona reparte sus tareas entre sabado/domingo balanceando esfuerzo.
+  Reemplaza solo asignaciones generadas previas; las manuales
+  (generado=false) se respetan.
+- Cualquier usuario autenticado puede generar el reparto y anadir
+  tareas al catalogo; el admin gestiona usuarios.
+- Config tareas_personas (ids de Fiti,Mar,Jose). Las personas del
+  reparto se calculan por prefijo de nombre (los posibles prefijos se
+  guardan en la config por si cambian los nombres).
+
+------------------------------------------------------------------------
+4. Entorno y arquitectura
+------------------------------------------------------------------------
+- Windows (win32), PowerShell 5.1. Stack replicado de quiniela_app_new /
+  GM-PrintFlow: monorepo app/ con packages/api (Express + TypeScript +
+  Prisma) y packages/web (Vite + React + TypeScript + Tailwind 4).
+- Base de datos: PostgreSQL 15 en Docker, puerto 5435
+  (user/db/pass = cookplan), contenedor cookplan-db.
+- Puertos: API 3004, dev server web 5176 (proxy /api y /uploads -> 3004).
+- Tema: dark por defecto con modo claro; clases utilitarias card, btn,
+  input, badge; acento naranja (#f97316).
+
+------------------------------------------------------------------------
+5. Base de datos (Prisma)
+------------------------------------------------------------------------
+- Migraciones aplicadas:
+    20260919091315_init                     (esquema inicial)
+    20260919100000_tokens_usuario_unico     (usuarioId unico en tokens)
+    20260919110000_tareas_domesticas        (TareaDomestica, Asignacion
+                                             Tarea + enum DiaSemanaTarea;
+                                             @@unique(usuarioId,tareaId,
+                                             semana))
+- OJO: prisma migrate dev es interactivo y falla en consola no
+  interactiva. Se escriben migraciones a mano en
+  prisma/migrations/<epoch>_nombre/migration.sql y se aplican con:
+      npx prisma migrate deploy  (+ prisma generate)
+
+------------------------------------------------------------------------
+6. API REST (packages/api)
+------------------------------------------------------------------------
+  /api/health
+  /api/auth          login, registro, confirmar, recuperar, reset,
+                     perfil + logo
+  /api/recetas       CRUD + foto
+  /api/plan          get, guardar, generar, sugerencias
+  /api/lista-compra  get, crear, patchear, borrar, generar desde menu
+  /api/tareas        reparto + catalogo + asignaciones
+  /api/usuarios      gestion de usuarios (admin)
+- JWT Bearer; middleware de auth con req.usuario; fotos con multer 2.x
+  + sharp (WebP).
+- Email: si existe SMTP_HOST envia correos reales; si no, el enlace se
+  muestra por consola.
+
+------------------------------------------------------------------------
+7. Frontend web (packages/web)
+------------------------------------------------------------------------
+- Paginas: Login, Register, Confirmar, Recuperar, Reset, NotFound,
+  Recetas (grid + CRUD + ver), Plan (tabla semanal + picker con
+  sugerencias), Lista, Tareas domesticas, Perfil, Usuarios (admin).
+- Contextos: Auth (cp_token/cp_usuario, guardas Privado/Admin) y Tema
+  (cp-theme). Axios centralizado con interceptor de token y manejo 401.
+- Build de produccion en verde (tsc && vite build); proxy del dev server
+  probado de extremo a extremo (login via 5176).
+- Capacitor 8: plataforma Android anadida (appId com.cookplan.app,
+  webDir dist). Para la app real compilar con VITE_API_URL apuntando a
+  la API desplegada.
+
+------------------------------------------------------------------------
+8. Pruebas realizadas
+------------------------------------------------------------------------
+- OK  Health OK; login de Mar y Jose; recetas: 40 importadas
+     (0 duplicadas).
+- OK  Plan semanal: POST /plan/generar -> 7 dias; lista de la compra
+     desde menu -> 74 productos.
+- OK  Tareas: reparto de 15 tareas / 3 personas, semana 2026-09-14 ->
+     sabado 2026-09-19 (esfuerzos 4/5/5) y domingo 2026-09-20 (4/4/4).
+     Patch de checked, asignaciones manuales y catalogo verificados.
+- OK  Build web + E2E a traves del proxy del dev server.
+
+------------------------------------------------------------------------
+9. Pendientes
+------------------------------------------------------------------------
+- [..] Compilar APK Android (requiere Android Studio / SDK; solo hay
+        Java 17 en este equipo, no hay SDK).
+- [..] Git init + push del repositorio cookplan (GitHub/yoyst69).
+- [..] Despliegue: exportar a Supabase (conexion de respaldo) y decidir
+        host de la API (infinityfree no soporta Node/Express).
+
+------------------------------------------------------------------------
+10. Ficheros clave
+------------------------------------------------------------------------
+  app/packages/api/src/routes/  auth, recetas, plan, lista, tareas,
+                                usuarios
+  app/packages/api/prisma/      schema.prisma · seed.ts · migrations/
+  app/packages/api/scripts/     recetasDataA.ts · recetasDataB.ts ·
+                                recetasData.ts · import-recetas.ts
+  app/packages/api/.env         DATABASE_URL, JWT_SECRET, PORT=3004
+  app/packages/web/src/pages/   las 12 paginas · lib/api.ts · fechas.ts
+  app/packages/web/vite.config.ts  proxy /api y /uploads -> 3004
