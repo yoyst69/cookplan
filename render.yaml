@@ -1,0 +1,22 @@
+# CookPlan - render.yaml (blueprint para Render)
+# 1) Entrar en dashboard.render.com -> New + -> Blueprint -> elegir este repositorio
+# 2) Definir las variables marcadas como `sync: false` (DATABASE_URL, JWT_SECRET)
+services:
+  - type: web
+    name: cookplan-api
+    runtime: node
+    plan: free
+    buildCommand: npm --prefix packages/api install && npm --prefix packages/api run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: APP_NAME
+        value: CookPlan
