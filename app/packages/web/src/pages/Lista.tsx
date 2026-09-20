@@ -61,6 +61,17 @@ export default function Lista() {
     }
   };
 
+  const vaciar = async () => {
+    if (!window.confirm('¿Vaciar TODA la lista de la compra de esta semana? Esta acción no se puede deshacer.')) return;
+    try {
+      const r = await listaAPI.vaciar(semana);
+      setItems([]);
+      notificar(`Lista vaciada (${r.data.borrados} elementos eliminados)`);
+    } catch (e) {
+      notificar(await errMsg(e), 'error');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -73,9 +84,24 @@ export default function Lista() {
           <button className="btn-ghost" onClick={() => setSemana((s) => addDaysIso(s, 7))}><ChevronRight className="h-4 w-4" /></button>
         </div>
         <button className="btn-outline" onClick={generar}><RefreshCw className="h-4 w-4" /> Del menú</button>
+        <button className="btn-danger-soft" onClick={vaciar} disabled={items.length === 0}><Trash2 className="h-4 w-4" /> Vaciar</button>
         <button className="btn-primary" onClick={() => setModal(true)}><Plus className="h-4 w-4" /> Añadir</button>
       </div>
 
+      {!cargando && items.length > 0 && (
+        <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Progreso</span>
+          <div className="h-2 min-w-24 flex-1 overflow-hidden rounded-full bg-panel-3">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-accent-500 transition-all duration-500"
+              style={{ width: `${Math.round((comprados.length / items.length) * 100)}%` }}
+            />
+          </div>
+          <span className="text-xs text-slate-400">
+            <b className="text-slate-100">{comprados.length}</b> comprados · <b className="text-amber-400">{pendientes.length}</b> pendientes
+          </span>
+        </div>
+      )}
       {cargando ? (
         <Spinner texto="Cargando lista..." />
       ) : items.length === 0 ? (

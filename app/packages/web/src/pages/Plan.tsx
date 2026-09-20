@@ -82,6 +82,10 @@ export default function Plan() {
         </button>
       </div>
 
+      <p className="text-sm text-slate-400">
+        El generador rellena <b className="text-slate-200">los 7 días</b> evitando repetir platos recientes. Pulsa en una casilla para cambiar la comida o cena a mano.
+      </p>
+
       {cargando ? (
         <Spinner texto="Cargando plan..." />
       ) : (

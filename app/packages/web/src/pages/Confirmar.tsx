@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MailCheck, Loader2 } from 'lucide-react';
 import { authAPI, errMsg } from '../lib/api';
+import AuthShell from '../components/AuthShell';
 
 export default function Confirmar() {
   const { token } = useParams();
@@ -27,28 +28,28 @@ export default function Confirmar() {
   }, [token]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="card w-full max-w-sm p-8 text-center">
+    <AuthShell>
+      <div className="p-4 text-center sm:p-6">
         {estado === 'cargando' && (
-          <div className="flex flex-col items-center gap-3 text-slate-400">
-            <Loader2 className="h-8 w-8 animate-spin" />
+          <div className="flex flex-col items-center gap-3 py-6 text-slate-400">
+            <Loader2 className="h-10 w-10 animate-spin text-accent-500" />
             <p className="text-sm">Confirmando tu correo...</p>
           </div>
         )}
         {estado === 'ok' && (
-          <div className="flex flex-col items-center gap-3">
-            <MailCheck className="h-10 w-10 text-emerald-500" />
+          <div className="flex flex-col items-center gap-3 py-6">
+            <MailCheck className="h-14 w-14 text-emerald-500" />
             <p className="font-semibold text-emerald-400">{mensaje}</p>
             <Link to="/login" className="btn-primary mt-2">Iniciar sesión</Link>
           </div>
         )}
         {estado === 'error' && (
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-3 py-6">
             <p className="font-semibold text-red-400">{mensaje}</p>
             <Link to="/login" className="btn-outline mt-2">Volver al inicio</Link>
           </div>
         )}
       </div>
-    </div>
+    </AuthShell>
   );
 }

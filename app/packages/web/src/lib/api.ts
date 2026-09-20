@@ -179,6 +179,7 @@ export const listaAPI = {
   patch: (id: number, data: { checked?: boolean; producto?: string; cantidad?: string }) =>
     api.patch<{ item: ListaItem }>(`/lista-compra/${id}`, data),
   del: (id: number) => api.delete<{ ok: boolean }>(`/lista-compra/${id}`),
+  vaciar: (semana?: string) => api.delete<{ ok: boolean; borrados: number }>('/lista-compra', { params: { semana } }),
 };
 
 /* ---------- Tareas domesticas ---------- */
@@ -195,6 +196,7 @@ export const tareasAPI = {
   patchAsignacion: (id: number, data: { checked?: boolean; dia?: 'SABADO' | 'DOMINGO' }) =>
     api.patch<{ asignacion: AsignacionTarea }>(`/tareas/asignacion/${id}`, data),
   delAsignacion: (id: number) => api.delete<{ ok: boolean }>(`/tareas/asignacion/${id}`),
+  delTodas: (semana: string) => api.delete<{ ok: boolean; borradas: number }>(`/tareas/semana/${semana}`),
 };
 
 /* ---------- Usuarios (admin) ---------- */

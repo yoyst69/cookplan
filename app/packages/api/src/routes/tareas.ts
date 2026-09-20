@@ -26,7 +26,7 @@ async function cargarPersonas(): Promise<Array<{ id: number; nombre: string; ema
 }
 
 function rotacionSemana(lunes: Date): number {
-  const epoch = new Date(2026, 0, 5, 0, 0, 0, 0); // lunes cualquiera de base
+  const epoch = new Date(Date.UTC(2026, 0, 5)); // lunes cualquiera de base
   return Math.floor((lunes.getTime() - epoch.getTime()) / (7 * 86400000));
 }
 
@@ -282,6 +282,19 @@ router.patch('/asignacion/:id', async (req, res) => {
 });
 
 // DELETE /tareas/asignacion/:id — quita una tarea del plan
+// DELETE /tareas/semana/:semana — borra TODAS las asignaciones de ese finde (masivo)
+router.delete('/semana/:semana', async (req, res) => {
+  try {
+    const lunes = mondayOf(parseIso(String(req.params.semana)));
+    const { count } = await prisma.asignacionTarea.deleteMany({ where: { semana: lunes } });
+    res.json({ ok: true, borradas: count });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err?.message || 'Error interno del servidor' });
+  }
+});
+
+// DELETE /tareas/asignacion/:id — quita una tarea del plan (individual)
 router.delete('/asignacion/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);

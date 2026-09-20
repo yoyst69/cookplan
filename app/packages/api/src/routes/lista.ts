@@ -144,6 +144,23 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+// DELETE /lista-compra — vacía la lista (toda la lista del usuario, o una semana concreta si se pasa ?semana=)
+router.delete('/', async (req, res) => {
+  try {
+    const usuarioId = req.usuario!.id;
+    const where: any = { usuarioId };
+    if (typeof req.query.semana === 'string' && req.query.semana) {
+      const lunes = await semanaParam(req.query.semana);
+      where.semana = parseIso(lunes);
+    }
+    const { count } = await prisma.listaCompraItem.deleteMany({ where });
+    res.json({ ok: true, borrados: count });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err?.message || 'Error interno del servidor' });
+  }
+});
+
 // DELETE /lista-compra/:id — quita un item de la lista
 router.delete('/:id', async (req, res) => {
   try {

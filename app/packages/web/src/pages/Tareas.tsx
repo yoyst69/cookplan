@@ -76,6 +76,17 @@ export default function Tareas() {
     }
   };
 
+  const borrarTodas = async () => {
+    if (!window.confirm('¿Borrar todas las tareas asignadas este finde?')) return;
+    try {
+      const r = await tareasAPI.delTodas(semana);
+      setReparto((p) => p && { ...p, asignaciones: [] });
+      notificar(`Eliminadas ${r.data.borradas} tareas del finde`);
+    } catch (e) {
+      notificar(await errMsg(e), 'error');
+    }
+  };
+
   const hayReparto = (reparto?.asignaciones.length || 0) > 0;
   const totales = reparto?.asignaciones.reduce((acc, a) => {
     acc.total += a.peso;
@@ -95,6 +106,8 @@ export default function Tareas() {
           <button className="btn-ghost" onClick={() => setSemana((s) => addDaysIso(s, 7))}><ChevronRight className="h-4 w-4" /></button>
         </div>
         <button className="btn-outline" onClick={() => setModalCatalogo(true)}><Plus className="h-4 w-4" /> Catálogo</button>
+        <button className="btn-outline" onClick={() => setModalAsignar(true)}><UserPlus className="h-4 w-4" /> Asignar tarea</button>
+        <button className="btn-outline" onClick={borrarTodas}><Trash2 className="h-4 w-4" /> Borrar todas del finde</button>
         <button className="btn-primary" onClick={generar} disabled={generando}>
           <Sparkles className="h-4 w-4" /> {generando ? 'Repartiendo...' : 'Generar reparto'}
         </button>
@@ -116,8 +129,11 @@ export default function Tareas() {
             <div className="rounded-xl border border-edge bg-panel px-3 py-2">
               {totales.total} tareas · {totales.hecho} hechas ({Math.round((totales.hecho / totales.total) * 100)}%)
             </div>
-            <div className="flex-1 h-2 overflow-hidden rounded-full bg-panel-3">
-              <div className="h-full rounded-full bg-accent-500 transition-all" style={{ width: `${(totales.hecho / totales.total) * 100}%` }} />
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-panel-3">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-accent-500 transition-all duration-500"
+                style={{ width: `${(totales.hecho / totales.total) * 100}%` }}
+              />
             </div>
             <button className="btn-primary btn-sm" onClick={() => setModalAsignar(true)}><UserPlus className="h-4 w-4" /> Asignar tarea</button>
           </div>

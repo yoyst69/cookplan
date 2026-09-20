@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import prisma from '../prisma';
 import { autenticar } from '../middleware/auth';
-import { parseIso, isoDate, diasSemana, hoy } from '../services/fechas';
+import { parseIso, isoDate, diasSemana, addDays, hoy } from '../services/fechas';
 import { fotoUrl } from '../services/fotos';
 
 const router = Router();
@@ -26,7 +26,7 @@ async function semanaData(usuarioId: number, semana: string) {
   const lunes = mondayParam(semana);
   const dias = diasSemana(lunes);
   const desde = dias[0];
-  const hasta = addDaysLocal(dias[6], 1);
+  const hasta = addDays(dias[6], 1);
   const planes = await prisma.planMenu.findMany({
     where: { usuarioId, fecha: { gte: desde, lt: hasta } },
     include: { comida: true, cena: true },
@@ -39,7 +39,7 @@ async function semanaData(usuarioId: number, semana: string) {
       const p = porFecha[isoDate(d)] || null;
       return {
         fecha: isoDate(d),
-        nombre: DIAS_NOMBRE[(d.getDay() + 6) % 7],
+        nombre: DIAS_NOMBRE[(d.getUTCDay() + 6) % 7],
         comida: p?.comidaId ? mapRecetaMini(p.comida) : null,
         cena: p?.cenaId ? mapRecetaMini(p.cena) : null,
         generado: p?.generado ?? false,
@@ -51,11 +51,6 @@ async function semanaData(usuarioId: number, semana: string) {
 function mondayParam(semana?: string): Date {
   const d = semana ? parseIso(String(semana)) : hoy();
   return d;
-}
-function addDaysLocal(d: Date, n: number): Date {
-  const r = new Date(d);
-  r.setDate(r.getDate() + n);
-  return r;
 }
 
 // GET /plan?semana=YYYY-MM-DD -> la semana (lunes a domingo)
@@ -119,7 +114,7 @@ router.get('/sugerencias', async (req, res) => {
 
     // fecha maxima de uso por receta (incluyendo dias ya planificados de esta semana)
     const planes = await prisma.planMenu.findMany({
-      where: { usuarioId, fecha: { lt: addDaysLocal(fechaDia, 1) } },
+      where: { usuarioId, fecha: { lt: addDays(fechaDia, 1) } },
     });
     const ultimoUso: Record<number, Date> = {};
     for (const p of planes) {
@@ -204,7 +199,7 @@ router.post('/generar', async (req, res) => {
     const lunes = mondayParam(String(semana));
     const dias = diasSemana(lunes);
     const desde = dias[0];
-    const hasta = addDaysLocal(dias[6], 1);
+    const hasta = addDays(dias[6], 1);
     const config = await prisma.configuracion.findUnique({ where: { clave: 'dias_sin_repetir' } });
     const diasSinRepetir = Number(config?.valor || 21);
 
@@ -228,7 +223,15 @@ router.post('/generar', async (req, res) => {
       // elimina las usadas dentro de la ventana dias_sin_repetir, pero solo si quedan alternativas
       const frescas = pool.filter((r) => !recientes().has(r.id));
       if (frescas.length > 0) pool = frescas;
-      if (pool.length === 0) pool = porMomento[momento].filter((r) => !ocupadas.has(r.id));
+      // Ultimo recurso: si se acaban las recetas de ese momento (p.ej. solo 6 cenas para 7 dias),
+      // permite repetir una de las ya asignadas esta semana para no dejar ningun dia vacio.
+      if (pool.length === 0) pool = porMomento[momento];
+      // Último recurso: si ni así hay candidatas (pocas recetas de ese momento: ej. solo 6 cenas
+      // para 7 días), repite un plato ya usado esta semana, prefiriendo el que hace más tiempo que no se usó.
+      if (pool.length === 0) {
+        const conRepeticion = porMomento[momento].filter((r) => !recientes().has(r.id));
+        pool = conRepeticion.length > 0 ? conRepeticion : porMomento[momento];
+      }
       const sorted = [...pool].sort((a, b) => {
         const ua = ultimoUso[a.id]?.getTime() || 0;
         const ub = ultimoUso[b.id]?.getTime() || 0;
@@ -288,7 +291,7 @@ router.post('/generar', async (req, res) => {
 
     res.json({
       ok: true,
-      mensaje: `Plan generado (${asignadas} platos asignados) evitando repetir platos en menos de ${diasSinRepetir} días`,
+      mensaje: `Plan generado: ${asignadas} platos asignados en los 7 días, sin repetir platos en menos de ${diasSinRepetir} días`,
       semana: await semanaData(usuarioId, isoDate(lunes)),
     });
   } catch (err: any) {

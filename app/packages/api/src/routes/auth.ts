@@ -172,7 +172,10 @@ router.patch('/me', autenticar, upload.single('logo'), async (req, res) => {
       if (existing) return res.status(409).json({ error: 'Ese correo ya está registrado' });
       data.email = e;
     }
-    if (typeof body.password === 'string' && body.password.length >= 6) {
+    if (typeof body.password === 'string' && body.password.trim().length > 0) {
+      if (body.password.length < 6) {
+        return res.status(400).json({ error: 'La contrase�a debe tener al menos 6 caracteres' });
+      }
       data.password = await bcrypt.hash(body.password, 12);
     }
     if (req.file) {

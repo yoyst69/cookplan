@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, Eye, Clock, Users, ImagePlus, X, UtensilsCrossed, Utensils } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Eye, Clock, Users, ImagePlus, X, UtensilsCrossed, Utensils, FileText } from 'lucide-react';
 import { recetasAPI, errMsg, Receta, MomentoDia } from '../lib/api';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -52,6 +52,43 @@ export default function Recetas() {
     return () => clearTimeout(t);
   }, [q]);
 
+  const pdf = () => {
+    const lista = [...recetas].sort((a, b) => a.titulo.localeCompare(b.titulo, 'es', { numeric: true }));
+    const w = window.open('', '_blank', 'width=900,height=650');
+    if (!w) return;
+    const limpiar = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8" /><title>CookPlan · Recetas (A–Z)</title>
+    <style>
+      body{font-family:Georgia,'Times New Roman',serif;color:#1e293b;margin:2cm;line-height:1.45}
+      h1{font-size:24pt;border-bottom:3px double #f97316;padding-bottom:6px;margin-bottom:18px}
+      h2{font-size:13pt;color:#9a3412;margin:14px 0 2px;page-break-inside:avoid}
+      p{font-size:10pt;margin:2px 0}
+      .meta{color:#64748b;font-size:9pt;font-style:italic}
+      ol,ul{margin:2px 0 6px;padding-left:20px}
+      li{font-size:10pt}
+      @media print{body{margin:0}}
+      /* cada página = exactamente 2 recetas, y el par queda CENTRADO (vertical y horizontal) en su A4 */
+      .par{break-after:page;page-break-after:always;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;min-height:100vh;padding:1.2cm 2cm;box-sizing:border-box}
+      .par:last-of-type{break-after:auto;page-break-after:auto}
+      h2,ol,ul,p{margin-bottom:4px}
+      ol,ul{break-inside:avoid;page-break-inside:avoid;width:fit-content;text-align:left;padding-left:22px}
+    </style></head><body>
+    <h1 style="text-align:center">Recetas de cocina</h1>
+    ${lista.reduce<string[]>((grupos, r, i) => {
+      const ficha = `\n<h2>${limpiar(r.titulo)}</h2>
+        <p class="meta">${limpiar(r.momento)}${r.tiempo ? ` · ${r.tiempo} min` : ''}${r.personas ? ` · ${r.personas} pers.` : ''}</p>
+        ${r.descripcion ? `<p>${limpiar(r.descripcion)}</p>` : ''}
+        ${r.ingredientes?.length ? `<p><b>Ingredientes:</b> ${r.ingredientes.map(limpiar).join(', ')}</p>` : ''}
+        ${r.pasos?.length ? `<ol>${r.pasos.map((p) => `<li>${limpiar(p)}</li>`).join('')}</ol>` : ''}`;
+      grupos[i >> 1] = (grupos[i >> 1] || '') + ficha;
+      return grupos;
+    }, []).map((grupo, i) => `<div class="par">${grupo}</div>`).join('')}
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
   const borrar = async (r: Receta) => {
     if (!window.confirm(`¿Eliminar la receta "${r.titulo}"?`)) return;
     try {
@@ -78,6 +115,9 @@ export default function Recetas() {
         <button className="btn-primary" onClick={() => setModal({ tipo: 'crear' })}>
           <Plus className="h-4 w-4" /> Nueva receta
         </button>
+        <button className="btn-outline" onClick={pdf} title="Todas las recetas ordenadas alfabéticamente">
+          <FileText className="h-4 w-4" /> PDF
+        </button>
       </div>
 
       {cargando ? (
@@ -85,35 +125,52 @@ export default function Recetas() {
       ) : recetas.length === 0 ? (
         <EmptyState icon={UtensilsCrossed} texto="No hay recetas. Crea la primera o añade las del libro de casa." />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {recetas.map((r) => (
-            <article key={r.id} className="card group flex flex-col overflow-hidden">
-              <div className="relative h-40 cursor-pointer overflow-hidden bg-panel-2" onClick={() => setViendo(r)}>
-                {r.foto ? (
-                  <img src={r.foto} alt={r.titulo} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-slate-600">
-                    <Utensils className="h-10 w-10 opacity-40" />
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="chip">
+              📖 <b className="text-slate-100">{recetas.length}</b> recetas
+            </span>
+            <span className="chip">
+              🖼️ <b className="text-slate-100">{recetas.filter((r) => r.foto).length}</b> con foto
+            </span>
+            <span className="chip">
+              ⏱️ media <b className="text-slate-100">{Math.round(recetas.filter((r) => r.tiempo).reduce((n, r) => n + (r.tiempo || 0), 0) / Math.max(1, recetas.filter((r) => r.tiempo).length))}</b> min
+            </span>
+            <span className="ml-auto hidden text-xs text-slate-500 sm:inline">{recetas.filter((r) => r.momento === 'COMIDA' || r.momento === 'AMBAS').length} comidas · {recetas.filter((r) => r.momento === 'CENA' || r.momento === 'AMBAS').length} cenas</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recetas.map((r) => (
+              <article key={r.id} className="card card-hover group flex flex-col overflow-hidden">
+                <div className="relative h-40 cursor-pointer overflow-hidden bg-panel-2" onClick={() => setViendo(r)}>
+                  {r.foto ? (
+                    <img src={r.foto} alt={r.titulo} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" loading="lazy" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-slate-600">
+                      <Utensils className="h-10 w-10 opacity-40" />
+                    </div>
+                  )}
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+                  <div className="absolute right-2 top-2"><MomentoBadge momento={r.momento} /></div>
+                </div>
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <h3 className="cursor-pointer font-bold text-slate-100 hover:text-accent-400" onClick={() => setViendo(r)}>{r.titulo}</h3>
+                  {r.descripcion && <p className="line-clamp-2 text-sm text-slate-400">{r.descripcion}</p>}
+                  <div className="mt-auto flex items-center gap-3 pt-2 text-xs text-slate-400">
+                    {r.tiempo && <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {r.tiempo} min</span>}
+                    {r.personas && <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {r.personas} pers.</span>}
                   </div>
-                )}
-                <div className="absolute right-2 top-2"><MomentoBadge momento={r.momento} /></div>
-              </div>
-              <div className="flex flex-1 flex-col gap-2 p-4">
-                <h3 className="cursor-pointer font-bold text-slate-100 hover:text-accent-500" onClick={() => setViendo(r)}>{r.titulo}</h3>
-                {r.descripcion && <p className="line-clamp-2 text-sm text-slate-400">{r.descripcion}</p>}
-                <div className="mt-auto flex items-center gap-3 pt-2 text-xs text-slate-400">
-                  {r.tiempo && <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {r.tiempo} min</span>}
-                  {r.personas && <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {r.personas} pers.</span>}
+                  <div className="divider my-1" />
+                  <div className="flex items-center gap-1 pt-1">
+                    <button className="btn-ghost" onClick={() => setViendo(r)}><Eye className="h-4 w-4" /> Ver</button>
+                    <button className="btn-ghost" onClick={() => setModal({ tipo: 'editar', receta: r })}><Pencil className="h-4 w-4" /> Editar</button>
+                    <button className="btn-ghost hover:!bg-red-500/15 hover:!text-red-400" onClick={() => borrar(r)}><Trash2 className="h-4 w-4" /> Borrar</button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 pt-1">
-                  <button className="btn-ghost" onClick={() => setViendo(r)}><Eye className="h-4 w-4" /> Ver</button>
-                  <button className="btn-ghost" onClick={() => setModal({ tipo: 'editar', receta: r })}><Pencil className="h-4 w-4" /> Editar</button>
-                  <button className="btn-ghost hover:!bg-red-500/15 hover:!text-red-400" onClick={() => borrar(r)}><Trash2 className="h-4 w-4" /> Borrar</button>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        </>
       )}
 
       {modal && (

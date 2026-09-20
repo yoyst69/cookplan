@@ -11,3 +11,4 @@ android/build/
 .DS_Store
 ~$*.docx
 *.tmp
+app/packages/datos/

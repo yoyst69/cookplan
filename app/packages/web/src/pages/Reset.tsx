@@ -4,6 +4,7 @@ import { KeyRound } from 'lucide-react';
 import { useToast } from '../components/Toast';
 import { authAPI, errMsg } from '../lib/api';
 import { Campo } from '../components/ui';
+import AuthShell from '../components/AuthShell';
 
 export default function Reset() {
   const { notificar } = useToast();
@@ -34,29 +35,24 @@ export default function Reset() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="card space-y-4 p-6">
-          <h1 className="text-xl font-extrabold text-slate-100">Nueva contraseña</h1>
-          <form onSubmit={submit} className="space-y-4">
-            <Campo label="Contraseña" hint="Mínimo 6 caracteres">
-              <input className="input w-full" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
-            </Campo>
-            <Campo label="Repite la contraseña">
-              <input className="input w-full" type="password" required value={password2} onChange={(e) => setPassword2(e.target.value)} autoComplete="new-password" />
-            </Campo>
-            {error && <p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm font-medium text-red-400">{error}</p>}
-            {ok && <p className="rounded-lg bg-emerald-500/15 px-3 py-2 text-sm font-medium text-emerald-400">{ok}</p>}
-            <button className="btn-primary w-full" disabled={enviando}>
-              <KeyRound className="h-4 w-4" />
-              {enviando ? 'Guardando...' : 'Guardar contraseña'}
-            </button>
-          </form>
-          <div className="text-center text-sm">
-            <Link to="/login" className="font-semibold text-accent-500 hover:underline">Volver al inicio</Link>
-          </div>
+    <AuthShell titulo="Nueva contraseña" subtitulo="Elige una contraseña segura para tu cuenta">
+      <form onSubmit={submit} className="space-y-4">
+        <Campo label="Contraseña" hint="Mínimo 6 caracteres">
+          <input className="input-dark input w-full" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        </Campo>
+        <Campo label="Repite la contraseña">
+          <input className="input-dark input w-full" type="password" required value={password2} onChange={(e) => setPassword2(e.target.value)} autoComplete="new-password" />
+        </Campo>
+        {error && <p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm font-medium text-red-400">{error}</p>}
+        {ok && <p className="rounded-lg bg-emerald-500/15 px-3 py-2 text-sm font-medium text-emerald-400">{ok}</p>}
+        <button className="btn-primary w-full py-2.5" disabled={enviando}>
+          <KeyRound className="h-4 w-4" />
+          {enviando ? 'Guardando...' : 'Guardar contraseña'}
+        </button>
+        <div className="text-center text-sm">
+          <Link to="/login" className="font-semibold text-accent-500 hover:text-accent-400 hover:underline">Volver al inicio</Link>
         </div>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   );
 }

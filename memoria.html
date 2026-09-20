@@ -23,7 +23,7 @@ th{background:#fdf3ea}
 <body>
 
 <h1>CookPlan · Memoria del proyecto</h1>
-<p><span class="tag">Inicio</span> Actualizada: 2026-09-19 · Documento vivo, se amplía en cada sesión. <span class="tag">Estado</span> Backend completo y probado (recetas, plan semanal, lista de la compra y tareas domésticas del fin de semana) + frontend web completo con build en verde + plataforma Android añadida con Capacitor.</p>
+<p><span class="tag">Inicio</span> Actualizada: 2026-09-20 · Documento vivo, se amplía en cada sesión. <span class="tag">Estado</span> Backend completo y probado (recetas, plan semanal, lista de la compra y tareas domésticas del fin de semana) + frontend web completo con build en verde **y rediseño visual** (login con carrusel de imágenes de comida) + plataforma Android añadida con Capacitor.</p>
 
 <h2>1. Objetivo del proyecto</h2>
 <p>Aplicación <strong>CookPlan</strong> para el hogar: planificación semanal de comidas evitando repeticiones, generación de la lista de la compra a partir del menú y <strong>reparto de tareas domésticas del fin de semana</strong> entre los miembros de la casa (Fiti, Mar y Jose).</p>
@@ -120,6 +120,37 @@ app/packages/api/scripts/           recetasDataA.ts · recetasDataB.ts · receta
 app/packages/api/.env               DATABASE_URL, JWT_SECRET, PORT=3004 (reportable: puerto y conexión)
 app/packages/web/src/pages/         las 12 páginas · lib/api.ts · lib/fechas.ts
 app/packages/web/vite.config.ts     proxy /api y /uploads → http://localhost:3004</pre>
+
+<h2>Última sesión (2026-09-20)</h2>
+<ul>
+<li><b class="ok">Recetas PDF</b>: arreglado el bug «página en blanco» — el botón rápidopin PDF llamaba <code>onClick={pdf}</code> con la función <code>pdf</code> sin definir. Añadida: 2 recetas por página (página A4 centradas vert/horiz) con <code>@page A4</code> + <code>break-after</code> y título «Recetas de cocina» (botón en la barra superior).</li>
+<li><b class="ok">Tareas: barra superior</b> — «Catálogo», «Asignar tarea» y «Borrar todas del finde» quedaron SIEMPRE visibles en la cabecera (independiente de si hay reparto), + «Generar reparto».</li>
+<li><b class="ok">Tareas.tsx: bug corregido en esta sesión</b> — quedó UNA sola const <code>borrarTodas</code> (L79) usando <code>r.data.borradas</code>. Verificado: la página compila (build en verde).</li>
+<li><b class="ok">API</b>: método masivo <code>delTodas(semana)</code> añadido en web y ruta <code>DELETE /tareas/semana/:semana</code> en el backend (borrado masivo del finde).</li>
+</ul>
+
+<h2>Última sesión (2026-09-20 · correcciones + rediseño)</h2>
+<ul>
+<li><b class="ok">Plan semanal: los 7 días asignados</b> — el generador <code>POST /plan/generar</code> cubre TODOS los días de la semana (lunes a domingo): comida y cena en los 7, sin repetir platos recientes (con los dos últimos recursos de repetición si el catálogo no da para tanto). Nota de sesión: una prueba intermedia dejó el finde «libre» y el lunes siguiente se corrigió para volver a asignar los 7 días completos.</li>
+<li><b class="ok">Lista de la compra: botón «Vaciar»</b> — nuevo botón rojo que borra TODOS los elementos de la semana (confirmación previa) usando el DELETE <code>/lista-compra?semana</code> ya existente + barra de progreso (comprados / pendientes) en la parte superior.</li>
+<li><b class="ok">Rediseño visual (sesión grande)</b>:
+  <ul>
+    <li>Login/Registro/Recuperar/Reset/Confirmar usan un nuevo <code>AuthShell</code> a dos paneles: a la izquierda un <b>carrusel de imágenes de comida</b> (Unsplash, 5 diapositivas, autoplay 6 s, flechas y puntos, degradados de respaldo si una imagen no carga) con branding y chips de funcionalidades; a la derecha el formulario en tarjeta con borde superior degradado naranja. En móviles solo se ve el formulario con logo.</li>
+    <li>Sistema de diseño: sombras más suaves, <code>card-hover</code> (elevación al pasar el ratón), <code>.btn-primary</code> degradado naranja con glow, <code>.btn-danger-soft</code>, <code>.gradient-text</code>, <code>.chip</code>, <code>.divider</code>, fondo de página con más radiales.</li>
+    <li><code>Layout</code>: cabecera con logo degradado, navegación tipo pills (activo en degradado naranja), avatar circular con iniciales/logo y cierre de sesión integrado, footer con créditos.</li>
+    <li><code>Recetas</code>: barra de estadísticas (total, con foto, tiempo medio, comidas/cenas) y tarjetas con hover + degradado sobre la foto.</li>
+    <li><code>Tareas</code>: barra de progreso degradada; <code>NotFound</code> rediseñado con el logo.</li>
+  </ul>
+</li>
+</ul>
+
+<h2>Última sesión (2026-09-20 · fix definitivo del plan)</h2>
+<ul>
+<li><b class="ok">Causa real encontrada (bug de fechas, no del generador)</b> — el plan parecía dejar el viernes y el finde vacíos porque <b>todas las fechas se guardaban un día antes</b>: el servidor está en UTC+2 y Prisma serializa los <code>Date</code> a UTC para las columnas <code>@db.Date</code>, así que <code>new Date(2026,8,14)</code> (medianoche local = <code>2026-09-13T22:00Z</code>) se escribía como <code>2026-09-13</code>. El 7º día (domingo) caía fuera de la semana y quedaba en la fila del lunes siguiente, de ahí el histórico de datos "desplazados".</li>
+<li><b class="ok">Fix en <code>app/packages/api/src/services/fechas.ts</code></b> — todas las utilidades (<code>parseIso</code>, <code>isoDate</code>, <code>addDays</code>, <code>mondayOf</code>, <code>diasSemana</code>, <code>hoy</code>) ahora trabajan en UTC (<code>Date.UTC</code> + getters <code>getUTC*</code>), de forma que el día de calendario que se envía es exactamente el que se guarda. Ajustes en <code>plan.ts</code> (usa <code>addDays</code> de fechas y <code>getUTCDay</code> para el nombre del día) y <code>tareas.ts</code> (epoch de rotación en UTC).</li>
+<li class="ok">Verificado de extremo a extremo: <code>POST /plan/generar</code> con <code>semana=2026-09-14</code> devuelve «14 platos asignados en los 7 días» y la BD guarda filas en las fechas correctas 14→20 para Fiti, Mar y Jose (lunes a domingo, comida y cena).</li>
+<li class="ok">Limpieza de datos: se borraron las filas de <code>PlanMenu</code>/<code>ListaCompraItem</code>/<code>AsignacionTarea</code> desfasadas (12-30 sep) dejadas por el bug y se regeneró la semana actual para los 3 usuarios.</li>
+</ul>
 
 </body>
 </html>
