@@ -1,12 +1,14 @@
 # CookPlan - render.yaml (blueprint para Render)
 # 1) Entrar en dashboard.render.com -> New + -> Blueprint -> elegir este repositorio
 # 2) Definir las variables marcadas como `sync: false` (DATABASE_URL, JWT_SECRET)
+# Monorepo: la API vive en app/packages/api y el package.json raiz esta en app/.
 services:
   - type: web
     name: cookplan-api
     runtime: node
     plan: free
-    buildCommand: npm --prefix packages/api install && npm --prefix packages/api run build
+    rootDir: app
+    buildCommand: npm --prefix packages/api ci --include=dev && npm --prefix packages/api exec prisma generate && npm --prefix packages/api exec prisma migrate deploy && npm --prefix packages/api run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -18,5 +20,9 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: API_PUBLIC_URL
+        value: https://cookplan-api.onrender.com
+      - key: APP_URL
+        value: https://jomafosa69.xo.je/cp/
       - key: APP_NAME
         value: CookPlan

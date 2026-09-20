@@ -1,5 +1,8 @@
 {
   "appId": "com.cookplan.app",
   "appName": "CookPlan",
-  "webDir": "dist"
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  }
 }
