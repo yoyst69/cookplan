@@ -1,10 +1,11 @@
 ========================================================================
 CookPlan - Memoria del proyecto
 ========================================================================
-Actualizada: 2026-09-19   (documento vivo, se amplia en cada sesion)
+Actualizada: 2026-09-20   (documento vivo, se amplia en cada sesion)
 Estado: Backend completo y probado (recetas, plan semanal, lista de la
 compra y tareas domesticas del fin de semana) + frontend web completo
-con build en verde + plataforma Android anadida con Capacitor.
+con build en verde + plataforma Android con **APK release firmado y
+compilado** (Capacitor 8, Java 21).
 
 ------------------------------------------------------------------------
 1. Objetivo del proyecto
@@ -133,6 +134,32 @@ miembros de la casa (Fiti, Mar y Jose).
 - Capacitor 8: plataforma Android anadida (appId com.cookplan.app,
   webDir dist). Para la app real compilar con VITE_API_URL apuntando a
   la API desplegada.
+- FIRMA (configurada en esta sesion): el signing se lee de
+  app/packages/web/android/app/keystore.properties (fichero LOCAL, no
+  subido a git) -> cookplan-release.keystore con alias cookplan.
+  build.gradle usa signingConfigs.release condicional (si existe el
+  fichero). Keystore + keystore.properties + .keystore-pass excluidos
+  en .gitignore.**/release APK compilado con exito** (assembleRelease)
+  -> cookplan-release.apk firmado (CN=CookPlan).
+
+  ------------------------------------------------------------------------
+  A. Ultima sesion (2026-09-20 · release APK Android)
+  ------------------------------------------------------------------------
+  - [ok] Compilar la release requeria Java 21 y en este equipo solo
+        habia Java 17 (JDK 17 Adoptium). El JBR de Android Studio es
+        Java 25 (Gradle 8.14.3 no lo soporta). Se instalo Java 21
+        Temurin (C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-
+        hotspot) y se compilo gradlew assembleRelease -> BUILD
+        SUCCESSFUL en 27 s (123 tareas, firma validada con apksigner:
+        CN=CookPlan, SHA-256 60343f93...d1a0e).
+  - [ok] Firma release: keystore.properties + cookplan-release.keystore
+        son LOCALES (excluidos de GitHub con *.keystore,
+        keystore.properties y .keystore-pass en el .gitignore raiz).
+  - [.] Opcional: subir el APK a algun sitio de descarga directa para
+        instalarlo en el movil (aun no se ha hecido).
+  - [.] Pendiente original resuelto: «Compilar APK Android (requiere
+        SDK)» -> HECHO (solo faltaba el JDK 21; el SDK ya estaba en
+        C:\Users\Fortin69\AppData\Local\Android\Sdk, build-tools 36).
 
 ------------------------------------------------------------------------
 8. Pruebas realizadas

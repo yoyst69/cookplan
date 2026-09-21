@@ -51,7 +51,7 @@ async function reparto(lunes: Date) {
     asignaciones: asignaciones.map((a) => ({
       id: a.id,
       usuarioId: a.usuarioId,
-      persona: a.usuario.nombre,
+      persona: a.usuario?.nombre || null,
       tareaId: a.tareaId,
       tarea: a.tarea.nombre,
       peso: a.tarea.peso,
@@ -73,6 +73,7 @@ async function avisarPendientes(lunes: Date, asignador: { id: number; nombre: st
   });
   const porUsuario = new Map<number, (typeof pendientes)[number][]>();
   for (const a of pendientes) {
+    if (a.usuarioId == null) continue;
     if (!porUsuario.has(a.usuarioId)) porUsuario.set(a.usuarioId, []);
     porUsuario.get(a.usuarioId)!.push(a);
   }
@@ -82,7 +83,7 @@ async function avisarPendientes(lunes: Date, asignador: { id: number; nombre: st
     if (pend.length === 0) continue;
     const numero = pend.length;
     const detalle = pend.map((a) => a.tarea.nombre).join(', ');
-    const nombre = pend[0].usuario.nombre;
+    const nombre = pend[0].usuario?.nombre || '';
     filas.push({
       usuarioId,
       tipo: 'TAREA',
@@ -188,6 +189,40 @@ router.post('/generar', async (req, res) => {
     await avisarPendientes(lunes, { id: req.usuario!.id, nombre: req.usuario!.nombre });
 
     res.json(await reparto(lunes));
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: err?.message || 'Error interno del servidor' });
+  }
+});
+
+// POST /tareas/distribuir — reparte todo el catálogo activo entre sabado y domingo SIN asignar a nadie
+router.post('/distribuir', async (req, res) => {
+  try {
+    const lunes = parseIso(semanaParam(req.body?.semana));
+    const tareas = await prisma.tareaDomestica.findMany({ where: { activa: true }, orderBy: [{ peso: 'desc' }, { nombre: 'asc' }] });
+    if (tareas.length === 0) return res.status(400).json({ error: 'El catalogo de tareas esta vacio' });
+
+    // borrar asignaciones generadas anteriormente (sin asignar)
+    await prisma.asignacionTarea.deleteMany({ where: { semana: lunes, generado: true, usuarioId: null } });
+
+    const dias: Dia[] = ['SABADO', 'DOMINGO'];
+    let idx = 0;
+    const datos = tareas.map((t) => ({
+      usuarioId: null,
+      tareaId: t.id,
+      semana: lunes,
+      dia: dias[idx++ % 2],
+      checked: false,
+      orden: idx,
+      generado: true,
+      asignadaPorId: req.usuario!.id,
+    }));
+
+    for (const d of datos) {
+      await prisma.asignacionTarea.create({ data: d });
+    }
+
+    res.json({ ok: true, mensaje: `${tareas.length} tareas distribuidas entre sabado y domingo (sin asignar)`, semana: await reparto(lunes) });
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: err?.message || 'Error interno del servidor' });

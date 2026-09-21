@@ -15,9 +15,10 @@ interface FormReceta {
   personas: string;
   ingredientes: string;
   pasos: string;
+  excluirDelPlan: boolean;
 }
 
-const vacio: FormReceta = { titulo: '', momento: 'AMBAS', descripcion: '', tiempo: '', personas: '', ingredientes: '', pasos: '' };
+const vacio: FormReceta = { titulo: '', momento: 'AMBAS', descripcion: '', tiempo: '', personas: '', ingredientes: '', pasos: '', excluirDelPlan: false };
 
 export default function Recetas() {
   const { notificar } = useToast();
@@ -198,6 +199,7 @@ function FormReceta({ receta, onCerrar, onGuardado }: { receta: Receta | null; o
           personas: receta.personas ? String(receta.personas) : '',
           ingredientes: (receta.ingredientes || []).join('\n'),
           pasos: (receta.pasos || []).join('\n'),
+          excluirDelPlan: receta.excluirDelPlan ?? false,
         }
       : vacio
   );
@@ -223,6 +225,7 @@ function FormReceta({ receta, onCerrar, onGuardado }: { receta: Receta | null; o
         personas: form.personas ? Number(form.personas) : undefined,
         ingredientes: form.ingredientes.split('\n').map((s) => s.trim()).filter(Boolean),
         pasos: form.pasos.split('\n').map((s) => s.trim()).filter(Boolean),
+        excluirDelPlan: form.excluirDelPlan,
       };
       let guardada = receta;
       if (receta) {
@@ -280,6 +283,10 @@ function FormReceta({ receta, onCerrar, onGuardado }: { receta: Receta | null; o
             <Campo label="Descripción">
               <input className="input w-full" value={form.descripcion} onChange={set('descripcion')} placeholder="Breve presentación" />
             </Campo>
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" checked={form.excluirDelPlan} onChange={(e) => setForm((p) => ({ ...p, excluirDelPlan: e.target.checked }))} className="h-4 w-4 cursor-pointer accent-orange-500" />
+              Excluir del plan semanal
+            </label>
           </div>
           <div>
             <Campo label="Foto">

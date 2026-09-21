@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { UtensilsCrossed, CalendarDays, ShoppingCart, ListChecks, User, Users, Sun, Moon, LogOut, Bell, CheckCheck } from 'lucide-react';
+import { UtensilsCrossed, CalendarDays, ShoppingCart, ListChecks, User, Users, Sun, Moon, LogOut, Bell, CheckCheck, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { notificacionesAPI, Notificacion } from '../lib/api';
@@ -18,6 +18,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { usuario, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const nav = [...NAV];
   if (usuario?.esAdmin) nav.splice(5, 0, { to: '/usuarios', label: 'Usuarios', icon: Users });
@@ -35,12 +36,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <Logo />
             <span className="text-lg font-extrabold uppercase tracking-widest text-slate-100">CookPlan</span>
           </NavLink>
-          <div className="flex-1" />
-          <nav className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-edge/60 bg-panel p-1">
+          <button
+            onClick={() => setMenuAbierto((v) => !v)}
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-panel-3 hover:text-slate-200 md:hidden"
+            title="Menú de navegación"
+          >
+            {menuAbierto ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
+          <nav className="hidden items-center gap-1 rounded-2xl border border-edge/60 bg-panel p-1 md:flex">
             {nav.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
+                onClick={() => setMenuAbierto(false)}
                 className={({ isActive }) =>
                   `flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition ${
                     isActive
@@ -54,6 +62,38 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </NavLink>
             ))}
           </nav>
+
+          {menuAbierto && (
+            <div className="fixed inset-0 z-20 md:hidden">
+              <div className="absolute inset-0 bg-black/50" onClick={() => setMenuAbierto(false)} />
+              <div className="absolute left-3 right-3 top-16 mx-auto max-w-sm rounded-2xl border border-edge/60 bg-panel p-2 shadow-2xl animate-fade-up">
+                {nav.map((n) => (
+                  <NavLink
+                    key={n.to}
+                    to={n.to}
+                    onClick={() => setMenuAbierto(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                        isActive
+                          ? 'bg-gradient-to-br from-accent-400 to-accent-600 text-white shadow-md shadow-accent-500/30'
+                          : 'text-slate-400 hover:bg-panel-3 hover:text-slate-200'
+                      }`
+                    }
+                  >
+                    <n.icon className="h-4 w-4" />
+                    {n.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => setMenuAbierto((v) => !v)}
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-panel-3 hover:text-slate-200 md:hidden"
+            title="Abrir menú de navegación"
+          >
+            {menuAbierto ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
           <div className="flex items-center gap-1.5">
             <button onClick={toggle} className="rounded-lg p-2 text-slate-400 transition hover:bg-panel-3 hover:text-slate-200" title="Cambiar tema">
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

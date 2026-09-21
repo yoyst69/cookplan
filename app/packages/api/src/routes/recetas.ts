@@ -23,6 +23,7 @@ function mapReceta(r: any) {
     pasos: r.pasos || [],
     tiempo: r.tiempo,
     personas: r.personas,
+    excluirDelPlan: r.excluirDelPlan ?? false,
     creadorId: r.creadorId,
     creadorNombre: r.creador ? r.creador.nombre : null,
     createdAt: r.createdAt,
@@ -89,6 +90,7 @@ router.post('/', async (req, res) => {
         personas: body.personas ? Number(body.personas) : null,
         ingredientes: Array.isArray(body.ingredientes) ? body.ingredientes.map((i: any) => String(i)).filter(Boolean) : [],
         pasos: Array.isArray(body.pasos) ? body.pasos.map((p: any) => String(p)).filter(Boolean) : [],
+        excluirDelPlan: Boolean(body.excluirDelPlan),
         creadorId: req.usuario!.id,
       },
       include: { creador: { select: { nombre: true } } },
@@ -116,6 +118,7 @@ router.patch('/:id', async (req, res) => {
     if (body.personas !== undefined) data.personas = body.personas ? Number(body.personas) : null;
     if (Array.isArray(body.ingredientes)) data.ingredientes = body.ingredientes.map((i: any) => String(i)).filter(Boolean);
     if (Array.isArray(body.pasos)) data.pasos = body.pasos.map((p: any) => String(p)).filter(Boolean);
+    if (body.excluirDelPlan !== undefined) data.excluirDelPlan = Boolean(body.excluirDelPlan);
     const receta = await prisma.receta.update({ where: { id }, data, include: { creador: { select: { nombre: true } } } });
     res.json({ receta: mapReceta(receta) });
   } catch (err: any) {

@@ -16,6 +16,7 @@ export default function Tareas() {
   const [generando, setGenerando] = useState(false);
   const [modalAsignar, setModalAsignar] = useState(false);
   const [modalCatalogo, setModalCatalogo] = useState(false);
+  const [distribuyendo, setDistribuyendo] = useState(false);
 
   const cargar = useCallback(async (s: string) => {
     setCargando(true);
@@ -87,6 +88,19 @@ export default function Tareas() {
     }
   };
 
+  const distribuir = async () => {
+    setDistribuyendo(true);
+    try {
+      const r = await tareasAPI.distribuir(semana);
+      setReparto(r.data.semana);
+      notificar(r.data.mensaje || 'Tareas distribuidas entre sabado y domingo');
+    } catch (e) {
+      notificar(await errMsg(e), 'error');
+    } finally {
+      setDistribuyendo(false);
+    }
+  };
+
   const hayReparto = (reparto?.asignaciones.length || 0) > 0;
   const totales = reparto?.asignaciones.reduce((acc, a) => {
     acc.total += a.peso;
@@ -108,6 +122,7 @@ export default function Tareas() {
         <button className="btn-outline" onClick={() => setModalCatalogo(true)}><Plus className="h-4 w-4" /> Catálogo</button>
         <button className="btn-outline" onClick={() => setModalAsignar(true)}><UserPlus className="h-4 w-4" /> Asignar tarea</button>
         <button className="btn-outline" onClick={borrarTodas}><Trash2 className="h-4 w-4" /> Borrar todas del finde</button>
+        <button className="btn-outline" onClick={distribuir} disabled={distribuyendo}><ListChecks className="h-4 w-4" /> {distribuyendo ? 'Distribuyendo...' : 'Distribuir sin asignar'}</button>
         <button className="btn-primary" onClick={generar} disabled={generando}>
           <Sparkles className="h-4 w-4" /> {generando ? 'Repartiendo...' : 'Generar reparto'}
         </button>
@@ -138,8 +153,18 @@ export default function Tareas() {
             <button className="btn-primary btn-sm" onClick={() => setModalAsignar(true)}><UserPlus className="h-4 w-4" /> Asignar tarea</button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {(['SABADO', 'DOMINGO'] as Dia[]).map((dia) => (
+          {(() => {
+            const sinAsignar: Record<string, AsignacionTarea[]> = {};
+            if (reparto) {
+              for (const a of reparto.asignaciones) {
+                if (a.usuarioId === null) {
+                  (sinAsignar[a.dia] ??= []).push(a);
+                }
+              }
+            }
+            return (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {(['SABADO', 'DOMINGO'] as Dia[]).map((dia) => (
               <section key={dia} className="card p-4">
                 <h2 className="mb-3 flex items-center gap-2 text-base font-extrabold text-slate-100">
                   <span className={`h-2.5 w-2.5 rounded-full ${dia === 'SABADO' ? 'bg-amber-400' : 'bg-indigo-400'}`} />
@@ -179,10 +204,36 @@ export default function Tareas() {
                       </div>
                     );
                   })}
+                  {sinAsignar[dia]?.length > 0 && (
+                    <div className="rounded-xl border border-dashed border-slate-600 bg-panel-2/50 p-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-600/30 text-xs font-extrabold text-slate-400">??</span>
+                        <span className="text-sm font-bold text-slate-300">Sin asignar</span>
+                        <span className="ml-auto text-xs text-slate-500">{sinAsignar[dia].length} tareas · elige cual hacer</span>
+                      </div>
+                      <ul className="space-y-1">
+                        {sinAsignar[dia].sort((a, b) => a.orden - b.orden).map((a) => (
+                          <li key={a.id} className="group flex items-center gap-2 text-sm">
+                            <input type="checkbox" checked={a.checked} onChange={() => toggleCheck(a)} className="h-4 w-4 shrink-0 cursor-pointer accent-orange-500" />
+                            <span className={`flex-1 ${a.checked ? 'line-through text-slate-500' : 'text-slate-200'}`}>{a.tarea}</span>
+                            <span className="hidden text-[10px] text-slate-500 sm:inline"><Esfuerzo peso={a.peso} /></span>
+                            <button className="btn-ghost !p-1 opacity-0 transition group-hover:opacity-100" title="Cambiar de día" onClick={() => cambiarDia(a)}>
+                              <ArrowLeftRight className="h-3.5 w-3.5" />
+                            </button>
+                            <button className="btn-ghost !p-1 opacity-0 transition hover:!bg-red-500/15 hover:!text-red-400 group-hover:opacity-100" title="Quitar" onClick={() => borrar(a.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </section>
             ))}
           </div>
+          );
+          })()}
         </>
       )}
 

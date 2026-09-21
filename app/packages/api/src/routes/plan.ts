@@ -108,9 +108,18 @@ router.get('/sugerencias', async (req, res) => {
     const fechaDia = dias[dia];
 
     const recetas = await prisma.receta.findMany({
-      where: momento === 'COMIDA' ? { momento: { in: ['COMIDA', 'AMBAS'] } } : { momento: { in: ['CENA', 'AMBAS'] } },
+      where: {
+        excluirDelPlan: false,
+        ...(momento === 'COMIDA' ? { momento: { in: ['COMIDA', 'AMBAS'] } } : { momento: { in: ['CENA', 'AMBAS'] } }),
+      },
       include: { creador: { select: { nombre: true } } },
     });
+
+    // jueves en comida: solo platos de pasta
+    const esJuevesComida = dia === 3 && momento === 'COMIDA';
+    const recetasFiltradas = esJuevesComida
+      ? recetas.filter((r) => /pasta|espag|fideu|macarr|spag|tallarin|fusill|rigaton|penne|farfalle|lasa|canelon|raviol|tortellini|linguini|fettucc/i.test(r.titulo))
+      : recetas;
 
     // fecha maxima de uso por receta (incluyendo dias ya planificados de esta semana)
     const planes = await prisma.planMenu.findMany({
@@ -129,7 +138,7 @@ router.get('/sugerencias', async (req, res) => {
     }
 
     const ahora = new Date();
-    const candidatas = recetas
+    const candidatas = recetasFiltradas
       .map((r) => {
         const ultima = ultimoUso[r.id];
         const diasSinUsar = ultima ? Math.floor((ahora.getTime() - ultima.getTime()) / 86400000) : 999;
@@ -203,7 +212,7 @@ router.post('/generar', async (req, res) => {
     const config = await prisma.configuracion.findUnique({ where: { clave: 'dias_sin_repetir' } });
     const diasSinRepetir = Number(config?.valor || 21);
 
-    const recetasAll = await prisma.receta.findMany();
+    const recetasAll = await prisma.receta.findMany({ where: { excluirDelPlan: false } });
     const porMomento: Record<string, any[]> = {
       COMIDA: recetasAll.filter((r) => r.momento === 'COMIDA' || r.momento === 'AMBAS'),
       CENA: recetasAll.filter((r) => r.momento === 'CENA' || r.momento === 'AMBAS'),
@@ -218,8 +227,13 @@ router.post('/generar', async (req, res) => {
 
     const ocupadas = new Set<number>();
     const hoyD = new Date();
-    const encuentra = (momento: 'COMIDA' | 'CENA'): any | null => {
+    const encuentra = (momento: 'COMIDA' | 'CENA', diaIdx: number): any | null => {
       let pool = porMomento[momento].filter((r) => !ocupadas.has(r.id));
+      // jueves (3) en comida: solo platos de pasta
+      if (momento === 'COMIDA' && diaIdx === 3) {
+        const pastas = pool.filter((r) => /pasta|espag|fideu|ñocle|macarr|spag|tallarin|fusill|rigaton|penne|farfalle|lasa|canelon|raviol|tortellini|linguini|fettucc/i.test(r.titulo));
+        if (pastas.length > 0) pool = pastas;
+      }
       // elimina las usadas dentro de la ventana dias_sin_repetir, pero solo si quedan alternativas
       const frescas = pool.filter((r) => !recientes().has(r.id));
       if (frescas.length > 0) pool = frescas;
@@ -257,13 +271,14 @@ router.post('/generar', async (req, res) => {
     for (const p of existentes) planDeDia[isoDate(p.fecha)] = p;
 
     let asignadas = 0;
-    for (const fecha of dias) {
+    for (let diaIdx = 0; diaIdx < dias.length; diaIdx++) {
+      const fecha = dias[diaIdx];
       const clave = isoDate(fecha);
       const ext = planDeDia[clave];
       const data: any = { usuarioId, fecha };
       if (ext?.comidaId) data.comidaId = ext.comidaId;
       else {
-        const c = encuentra('COMIDA');
+        const c = encuentra('COMIDA', diaIdx);
         if (c) {
           data.comidaId = c.id;
           ultimoUso[c.id] = fecha;
@@ -273,7 +288,7 @@ router.post('/generar', async (req, res) => {
       if (!data.comidaId && ext) data.comidaId = ext.comidaId ?? null;
       if (ext?.cenaId) data.cenaId = ext.cenaId;
       else {
-        const ce = encuentra('CENA');
+        const ce = encuentra('CENA', diaIdx);
         if (ce) {
           data.cenaId = ce.id;
           ultimoUso[ce.id] = fecha;

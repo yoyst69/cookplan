@@ -51,6 +51,7 @@ export interface Receta {
   pasos: string[];
   tiempo: number | null;
   personas: number | null;
+  excluirDelPlan: boolean;
   creadorId: number | null;
   creadorNombre: string | null;
   createdAt: string;
@@ -109,8 +110,8 @@ export interface TareaCatalogo {
 
 export interface AsignacionTarea {
   id: number;
-  usuarioId: number;
-  persona: string;
+  usuarioId: number | null;
+  persona: string | null;
   tareaId: number;
   tarea: string;
   peso: number;
@@ -186,6 +187,7 @@ export const listaAPI = {
 export const tareasAPI = {
   get: (semana?: string) => api.get<RepartoTareas>('/tareas', { params: { semana } }),
   generar: (semana?: string) => api.post<RepartoTareas>('/tareas/generar', { semana }),
+  distribuir: (semana?: string) => api.post<{ ok: boolean; mensaje: string; semana: RepartoTareas }>('/tareas/distribuir', { semana }),
   catalogo: () => api.get<{ catalogo: TareaCatalogo[] }>('/tareas/catalogo'),
   addCatalogo: (nombre: string, peso: number) => api.post<{ tarea: TareaCatalogo }>('/tareas/catalogo', { nombre, peso }),
   patchCatalogo: (id: number, data: { nombre?: string; peso?: number; activa?: boolean }) =>

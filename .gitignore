@@ -8,6 +8,9 @@ android/build/
 .env.local
 .prisma/
 *.tsbuildinfo
+*.keystore
+keystore.properties
+.keystore-pass
 .DS_Store
 ~$*.docx
 *.tmp

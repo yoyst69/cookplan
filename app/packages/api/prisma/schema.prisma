@@ -87,6 +87,7 @@ model Receta {
   personas      Int?        // raciones
   creadorId     Int?
   creador       Usuario?    @relation(fields: [creadorId], references: [id], onDelete: SetNull)
+  excluirDelPlan Boolean    @default(false) // si true, no se incluye en el plan semanal automatico
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -160,8 +161,8 @@ model TareaDomestica {
 // Aunque la semana se guarda como lunes, la asignacion siempre cae en sabado o domingo.
 model AsignacionTarea {
   id            Int            @id @default(autoincrement())
-  usuarioId     Int            // persona asignada (Fiti, Mar o Jose)
-  usuario       Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuarioId     Int?           // persona asignada (null = sin asignar, la gente elige)
+  usuario       Usuario?       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   tareaId       Int
   tarea         TareaDomestica @relation(fields: [tareaId], references: [id], onDelete: Cascade)
   semana        DateTime       @db.Date // lunes de la semana del fin de semana
