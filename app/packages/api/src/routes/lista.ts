@@ -24,8 +24,9 @@ router.get('/', async (req, res) => {
   try {
     const semana = await semanaParam(typeof req.query.semana === 'string' ? req.query.semana : undefined);
     const items = await prisma.listaCompraItem.findMany({
-      where: { usuarioId: req.usuario!.id, semana: parseIso(semana) },
+      where: { semana: parseIso(semana) },
       orderBy: [{ checked: 'asc' }, { orden: 'asc' }, { createdAt: 'asc' }],
+      include: { usuario: { select: { id: true, nombre: true } } },
     });
     res.json({ semana, items });
   } catch (err) {
@@ -98,7 +99,7 @@ router.post('/generar', async (req, res) => {
 router.post('/item', async (req, res) => {
   try {
     const usuarioId = req.usuario!.id;
-    const { producto, cantidad, semana } = req.body ?? {};
+    const { producto, cantidad, semana, loPagaYo } = req.body ?? {};
     const nombre = (producto || '').trim();
     if (!nombre) return res.status(400).json({ error: 'El producto es obligatorio' });
     const semanaLunes = await semanaParam(semana);
@@ -115,6 +116,7 @@ router.post('/item', async (req, res) => {
         producto: nombre,
         cantidad: cantidad ? String(cantidad) : null,
         origen: 'MANUAL',
+        loPagaYo: typeof loPagaYo === 'boolean' ? loPagaYo : null,
         orden: (ultima[0]?.orden ?? 0) + 1,
       },
     });
@@ -134,6 +136,7 @@ router.patch('/:id', async (req, res) => {
     if (typeof body.checked === 'boolean') data.checked = body.checked;
     if (typeof body.producto === 'string' && body.producto.trim()) data.producto = body.producto.trim();
     if (typeof body.cantidad === 'string') data.cantidad = body.cantidad || null;
+    if (body.loPagaYo === null || typeof body.loPagaYo === 'boolean') data.loPagaYo = body.loPagaYo;
     const item = await prisma.listaCompraItem.updateMany({ where: { id, usuarioId: req.usuario!.id }, data });
     if (item.count === 0) return res.status(404).json({ error: 'Item no encontrado' });
     const updated = await prisma.listaCompraItem.findUnique({ where: { id } });

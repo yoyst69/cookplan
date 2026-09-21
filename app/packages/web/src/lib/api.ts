@@ -97,8 +97,10 @@ export interface ListaItem {
   cantidad: string | null;
   origen: 'MENU' | 'MANUAL';
   checked: boolean;
+  loPagaYo: boolean | null;
   orden: number;
   createdAt: string;
+  usuario?: { id: number; nombre: string };
 }
 
 export interface TareaCatalogo {
@@ -175,9 +177,9 @@ export const planAPI = {
 export const listaAPI = {
   get: (semana?: string) => api.get<{ semana: string; items: ListaItem[] }>('/lista-compra', { params: { semana } }),
   generar: (semana?: string) => api.post<{ semana: string; items: ListaItem[]; generados: number }>('/lista-compra/generar', { semana }),
-  add: (producto: string, cantidad?: string, semana?: string) =>
-    api.post<{ item: ListaItem }>('/lista-compra/item', { producto, cantidad, semana }),
-  patch: (id: number, data: { checked?: boolean; producto?: string; cantidad?: string }) =>
+  add: (producto: string, cantidad?: string, semana?: string, loPagaYo?: boolean | null) =>
+    api.post<{ item: ListaItem }>('/lista-compra/item', { producto, cantidad, semana, loPagaYo }),
+  patch: (id: number, data: { checked?: boolean; producto?: string; cantidad?: string; loPagaYo?: boolean | null }) =>
     api.patch<{ item: ListaItem }>(`/lista-compra/${id}`, data),
   del: (id: number) => api.delete<{ ok: boolean }>(`/lista-compra/${id}`),
   vaciar: (semana?: string) => api.delete<{ ok: boolean; borrados: number }>('/lista-compra', { params: { semana } }),

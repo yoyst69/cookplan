@@ -127,6 +127,7 @@ model ListaCompraItem {
   cantidad   String?     // texto libre de cantidad / veces que se repite
   origen     OrigenItem  @default(MANUAL)
   checked    Boolean     @default(false)
+  loPagaYo   Boolean?    // null = sin especificar, true = lo pago yo, false = no lo pago yo
   orden      Int         @default(0)
   createdAt  DateTime    @default(now())
 
