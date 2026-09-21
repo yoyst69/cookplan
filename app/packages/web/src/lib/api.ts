@@ -195,7 +195,7 @@ export const tareasAPI = {
   delCatalogo: (id: number) => api.delete<{ ok: boolean }>(`/tareas/catalogo/${id}`),
   addAsignacion: (data: { semana?: string; usuarioId: number; tareaId: number; dia?: 'SABADO' | 'DOMINGO' }) =>
     api.post<{ asignacion: AsignacionTarea }>('/tareas/asignacion', data),
-  patchAsignacion: (id: number, data: { checked?: boolean; dia?: 'SABADO' | 'DOMINGO' }) =>
+  patchAsignacion: (id: number, data: { checked?: boolean; dia?: 'SABADO' | 'DOMINGO'; usuarioId?: number | null }) =>
     api.patch<{ asignacion: AsignacionTarea }>(`/tareas/asignacion/${id}`, data),
   delAsignacion: (id: number) => api.delete<{ ok: boolean }>(`/tareas/asignacion/${id}`),
   delTodas: (semana: string) => api.delete<{ ok: boolean; borradas: number }>(`/tareas/semana/${semana}`),

@@ -280,7 +280,7 @@ router.post('/asignacion', async (req, res) => {
   }
 });
 
-// PATCH /tareas/asignacion/:id — marcar realizada (checked) o cambiar de dia
+// PATCH /tareas/asignacion/:id — marcar realizada (checked), cambiar dia, o asignar persona
 router.patch('/asignacion/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -288,6 +288,11 @@ router.patch('/asignacion/:id', async (req, res) => {
     const data: any = {};
     if (typeof body.checked === 'boolean') data.checked = body.checked;
     if (body.dia && DIAS.includes(String(body.dia).toUpperCase() as Dia)) data.dia = String(body.dia).toUpperCase();
+    if (body.usuarioId === null) {
+      data.usuarioId = null;
+    } else if (typeof body.usuarioId === 'number' && body.usuarioId > 0) {
+      data.usuarioId = body.usuarioId;
+    }
     const upd = await prisma.asignacionTarea.update({ where: { id }, data });
 
     // al finalizar una tarea, se avisa a quien la asigno

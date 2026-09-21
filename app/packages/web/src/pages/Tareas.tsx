@@ -17,6 +17,8 @@ export default function Tareas() {
   const [modalAsignar, setModalAsignar] = useState(false);
   const [modalCatalogo, setModalCatalogo] = useState(false);
   const [distribuyendo, setDistribuyendo] = useState(false);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOverPersona, setDragOverPersona] = useState<number | null>(null);
 
   const cargar = useCallback(async (s: string) => {
     setCargando(true);
@@ -101,6 +103,31 @@ export default function Tareas() {
     }
   };
 
+  const onDragStart = (id: number) => setDragId(id);
+  const onDragEnd = () => { setDragId(null); setDragOverPersona(null); };
+  const onDragOverPersona = (e: React.DragEvent, personaId: number) => {
+    e.preventDefault();
+    setDragOverPersona(personaId);
+  };
+  const onDropPersona = async (personaId: number, dia: Dia) => {
+    if (dragId == null) return;
+    setDragId(null);
+    setDragOverPersona(null);
+    try {
+      await tareasAPI.patchAsignacion(dragId, { usuarioId: personaId, dia });
+      setReparto((p) => p && {
+        ...p,
+        asignaciones: p.asignaciones.map((a) =>
+          a.id === dragId ? { ...a, usuarioId: personaId, persona: p.personas.find((x) => x.id === personaId)?.nombre || null, dia } : a
+        ),
+      });
+      notificar('Tarea asignada por arrastre');
+    } catch (e) {
+      notificar(await errMsg(e), 'error');
+      cargar(semana);
+    }
+  };
+
   const hayReparto = (reparto?.asignaciones.length || 0) > 0;
   const totales = reparto?.asignaciones.reduce((acc, a) => {
     acc.total += a.peso;
@@ -176,7 +203,10 @@ export default function Tareas() {
                     const esfuerzo = dePersona.reduce((n, a) => n + a.peso, 0);
                     const iniciales = persona.nombre.slice(0, 2).toUpperCase();
                     return (
-                      <div key={`${dia}-${persona.id}`} className="rounded-xl border border-edge bg-panel-2 p-3">
+                      <div key={`${dia}-${persona.id}`} className={`rounded-xl border bg-panel-2 p-3 transition-colors ${dragOverPersona === persona.id ? 'border-accent-500 bg-accent-500/10' : 'border-edge'}`}
+                    onDragOver={(e) => onDragOverPersona(e, persona.id)}
+                    onDragLeave={() => setDragOverPersona(null)}
+                    onDrop={() => onDropPersona(persona.id, dia)}>
                         <div className="mb-2 flex items-center gap-2">
                           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-500/15 text-xs font-extrabold text-accent-500">{iniciales}</span>
                           <span className="text-sm font-bold text-slate-100">{persona.nombre}</span>
@@ -213,7 +243,7 @@ export default function Tareas() {
                       </div>
                       <ul className="space-y-1">
                         {sinAsignar[dia].sort((a, b) => a.orden - b.orden).map((a) => (
-                          <li key={a.id} className="group flex items-center gap-2 text-sm">
+                          <li key={a.id} draggable onDragStart={() => onDragStart(a.id)} onDragEnd={onDragEnd} className={`group flex items-center gap-2 rounded-lg p-1 text-sm cursor-grab transition-opacity ${dragId === a.id ? 'opacity-40' : 'hover:bg-slate-700/30'}`}>
                             <input type="checkbox" checked={a.checked} onChange={() => toggleCheck(a)} className="h-4 w-4 shrink-0 cursor-pointer accent-orange-500" />
                             <span className={`flex-1 ${a.checked ? 'line-through text-slate-500' : 'text-slate-200'}`}>{a.tarea}</span>
                             <span className="hidden text-[10px] text-slate-500 sm:inline"><Esfuerzo peso={a.peso} /></span>
