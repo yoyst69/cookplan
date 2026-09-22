@@ -230,16 +230,25 @@ router.post('/generar', async (req, res) => {
     const encuentra = (momento: 'COMIDA' | 'CENA', diaIdx: number): any | null => {
       let pool = porMomento[momento].filter((r) => !ocupadas.has(r.id));
       // jueves (3) en comida: solo platos de pasta
-      if (momento === 'COMIDA' && diaIdx === 3) {
+      const esJuevesComida = momento === 'COMIDA' && diaIdx === 3;
+      if (esJuevesComida) {
         const pastas = pool.filter((r) => /pasta|espag|fideu|ñocle|macarr|spag|tallarin|fusill|rigaton|penne|farfalle|lasa|canelon|raviol|tortellini|linguini|fettucc/i.test(r.titulo));
         if (pastas.length > 0) pool = pastas;
       }
       // elimina las usadas dentro de la ventana dias_sin_repetir, pero solo si quedan alternativas
       const frescas = pool.filter((r) => !recientes().has(r.id));
       if (frescas.length > 0) pool = frescas;
-      // Ultimo recurso: si se acaban las recetas de ese momento (p.ej. solo 6 cenas para 7 dias),
-      // permite repetir una de las ya asignadas esta semana para no dejar ningun dia vacio.
-      if (pool.length === 0) pool = porMomento[momento];
+      // Ultimo recurso: si se acaban las recetas de ese momento, permite repetir.
+      // Si es jueves-comima, solo repite entre pastas (nunca fuera de pasta).
+      if (pool.length === 0) {
+        if (esJuevesComida) {
+          const todasLasPastas = porMomento[momento].filter((r) => /pasta|espag|fideu|ñocle|macarr|spag|tallarin|fusill|rigaton|penne|farfalle|lasa|canelon|raviol|tortellini|linguini|fettucc/i.test(r.titulo));
+          const sinRecientes = todasLasPastas.filter((r) => !recientes().has(r.id));
+          pool = sinRecientes.length > 0 ? sinRecientes : todasLasPastas.length > 0 ? todasLasPastas : porMomento[momento];
+        } else {
+          pool = porMomento[momento];
+        }
+      }
       // Último recurso: si ni así hay candidatas (pocas recetas de ese momento: ej. solo 6 cenas
       // para 7 días), repite un plato ya usado esta semana, prefiriendo el que hace más tiempo que no se usó.
       if (pool.length === 0) {
